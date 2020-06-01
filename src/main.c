@@ -45,7 +45,7 @@ int main(int argc, char** argv)
 	setup_bmp_180(&fd, &cal);
 
 	printf(
-			  "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d"
+			  "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n"
 			, cal.ac1
 			, cal.ac2
 			, cal.ac3

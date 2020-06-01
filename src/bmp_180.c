@@ -118,16 +118,9 @@ BMP_180_Calibration get_bmp_calibration(int fd)
 	const size_t size = BMP_180_CALIBRATION_NUMBER;
 	uint8_t read_buffer[size];
 
-	for(size_t i = 0; i < size; i ++)
-	{
-		const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 + i };
-		write(fd, write_buf, 1);
-
-		read(fd, read_buffer + i, 1);
-
-		printf("%.2X,", read_buffer[i] % 0xff);
-	}
-
+    const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
+    write(fd, write_buf, 1);
+    read(fd, read_buffer, BMP_180_CALIBRATION_NUMBER);
 	return compute_bmp_calibrations(read_buffer);
 }
 
