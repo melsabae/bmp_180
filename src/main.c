@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "bmp_180.h"
 
 
@@ -42,6 +43,21 @@ int main(int argc, char** argv)
 	BMP_180_Calibration cal;
 
 	setup_bmp_180(&fd, &cal);
+
+	printf(
+			  "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d"
+			, cal.ac1
+			, cal.ac2
+			, cal.ac3
+			, cal.ac4
+			, cal.ac5
+			, cal.ac6
+			, cal.b1
+			, cal.b2
+			, cal.mb
+			, cal.mc
+			, cal.md
+			);
 
 	//compute_true_temp_and_pressure(&true_temp, &true_press, 27898, 23843, 0, NULL);
 	//printf("%f, %f\n", true_temp, true_press);
