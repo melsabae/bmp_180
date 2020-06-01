@@ -48,7 +48,7 @@ endef
 
 define compile_object
 	@$(info $(shell date +%s.%N) compiling $3  ->  $2)
-	$(call compile, $1 -c, $2, $3)
+	@$(call compile, $1 -c, $2, $3)
 	@$(info $(shell date +%s.%N) compiled  $3  ->  $2)
 endef
 

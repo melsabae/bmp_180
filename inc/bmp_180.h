@@ -1,11 +1,13 @@
 #ifndef __BMP_180_H__
 #define __BMP_180_H__
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-const int DATASHEET_ADDRESS = 0xEE;
-const int I2CDETECT_ADDRESS = DATASHEET_ADDRESS >> 1;
+
+#include <inttypes.h>
+
 
 typedef enum
 {
@@ -78,12 +80,34 @@ typedef enum
 
 typedef struct
 {
-  uint8_t calibration_coefficients[22];
-} BMP_180;
+	int16_t  ac1;
+	int16_t  ac2;
+	int16_t  ac3;
+	uint16_t ac4;
+	uint16_t ac5;
+	uint16_t ac6;
+	int16_t  b1 ;
+	int16_t  b2 ;
+	int16_t  mb ;
+	int16_t  mc ;
+	int16_t  md ;
+} BMP_180_Calibration;
+
+
+const int DATASHEET_ADDRESS          = 0xEE;
+const int I2CDETECT_ADDRESS          = DATASHEET_ADDRESS >> 1;
+const int BMP_180_CALIBRATION_NUMBER = 22;
+
+
+BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_CALIBRATION_NUMBER]);
+BMP_180_Calibration get_bmp_calibration(int fd);
+int setup_bmp_180_fd(const char* device_path);
+void setup_bmp_180(int* fd, BMP_180_Calibration* cal);
 
 
 #ifdef __cplusplus
   }
 #endif
+
 #endif // __BMP_180_H__
 
