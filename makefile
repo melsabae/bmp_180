@@ -10,7 +10,7 @@ COMPILER              		:= gcc
 COMPILER_OPTIONS      		:= -Wall -Wextra
 _INC_PATHS             		:= $(shell find $(LIB_LIB_PATH) -type d -iname 'inc') $(LIB_INC_PATH)
 _LIB_PATHS          			:=
-_LIB_NAMES          			:= config
+_LIB_NAMES          			:= 
 INC_PATHS                 := $(_INC_PATHS:%=-I %)
 LIB_PATHS                 := $(_LIB_PATHS:%=-L %)
 LIB_LINKER_FLAGS          := $(_LIB_NAMES:%=-l %)
