@@ -39,10 +39,10 @@ void compute_true_temp_and_pressure(
 
 int main(int argc, char** argv)
 {
-	int fd;
+	int fd = 0;
 	BMP_180_Calibration cal;
 
-	setup_bmp_180(&fd, &cal);
+	//setup_bmp_180(&fd, &cal);
 
 	printf(
 			  "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n"
@@ -58,6 +58,28 @@ int main(int argc, char** argv)
 			, cal.mc
 			, cal.md
 			);
+
+	BMP_180_Calibration cal2 =
+	{
+		.ac1 = 408,
+		.ac2 = -72,
+		.ac3 = -14383,
+		.ac4 = 32741,
+		.ac5 = 32757,
+		.ac6 = 23153,
+		.b1  = 6190,
+		.b2  = 4,
+		.mb  = -32768,
+		.mc  = -8711,
+		.md  = 2868,
+	};
+
+	printf("%f\n", read_bmp_180(fd, BMP_180_START_CONVERSION_TEMPERATURE, &cal2));
+	printf("%f\n", read_bmp_180(fd, BMP_180_START_CONVERSION_PRESSURE_OSS_0, &cal2));
+	printf("%f\n", read_bmp_180(fd, BMP_180_START_CONVERSION_PRESSURE_OSS_1, &cal2));
+	printf("%f\n", read_bmp_180(fd, BMP_180_START_CONVERSION_PRESSURE_OSS_2, &cal2));
+	printf("%f\n", read_bmp_180(fd, BMP_180_START_CONVERSION_PRESSURE_OSS_3, &cal2));
+
 
 	//compute_true_temp_and_pressure(&true_temp, &true_press, 27898, 23843, 0, NULL);
 	//printf("%f, %f\n", true_temp, true_press);
