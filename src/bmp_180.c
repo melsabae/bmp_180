@@ -10,6 +10,34 @@
 
 typedef enum
 {
+    BMP_180_SCO_FINISHED_CONVERSION = 0b00000000
+  , BMP_180_SCO_START_CONVERSION    = 0b00100000
+} BMP_180SCO_Control;
+
+
+typedef enum
+{
+    BMP_180_MEASUREMENT_CONTROL_TEMPERATURE    = 0x0E
+  , BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_0 = 0x14 | BMP_180_OSS_CONTROL_1
+  , BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_1 = 0x14 | BMP_180_OSS_CONTROL_2
+  , BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_2 = 0x14 | BMP_180_OSS_CONTROL_4
+  , BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_3 = 0x14 | BMP_180_OSS_CONTROL_8
+} BMP_180_Measurement_Control;
+
+
+typedef enum
+{
+    BMP_180_START_CONVERSION_TEMPERATURE    = BMP_180_MEASUREMENT_CONTROL_TEMPERATURE    | BMP_180_SCO_START_CONVERSION
+  , BMP_180_START_CONVERSION_PRESSURE_OSS_0 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_0 | BMP_180_SCO_START_CONVERSION
+  , BMP_180_START_CONVERSION_PRESSURE_OSS_1 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_1 | BMP_180_SCO_START_CONVERSION
+  , BMP_180_START_CONVERSION_PRESSURE_OSS_2 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_2 | BMP_180_SCO_START_CONVERSION
+  , BMP_180_START_CONVERSION_PRESSURE_OSS_3 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_3 | BMP_180_SCO_START_CONVERSION
+} BMP_180_Start_Conversion;
+
+
+
+typedef enum
+{
     BMP_180_REGISTER_OUT_XLSB   = 0xF8
   , BMP_180_REGISTER_OUT_LSB    = 0XF7
   , BMP_180_REGISTER_OUT_MSB    = 0xF6
@@ -46,6 +74,20 @@ const int I2CDETECT_ADDRESS          = DATASHEET_ADDRESS >> 1;
 const int BMP_180_CALIBRATION_NUMBER = 22;
 
 
+static BMP_180_Start_Conversion convert_oss_to_conversion(const BMP_180_OSS_Control c)
+{
+	switch(c)
+	{
+		case BMP_180_OSS_CONTROL_1: return BMP_180_START_CONVERSION_PRESSURE_OSS_0;
+		case BMP_180_OSS_CONTROL_2: return BMP_180_START_CONVERSION_PRESSURE_OSS_1;
+		case BMP_180_OSS_CONTROL_4: return BMP_180_START_CONVERSION_PRESSURE_OSS_2;
+		case BMP_180_OSS_CONTROL_8: return BMP_180_START_CONVERSION_PRESSURE_OSS_3;
+	}
+
+	return BMP_180_START_CONVERSION_PRESSURE_OSS_3;
+}
+
+
 static BMP_180_OSS_Control convert_conversion_to_oss(const BMP_180_Start_Conversion s)
 {
 	switch(s)
@@ -54,14 +96,15 @@ static BMP_180_OSS_Control convert_conversion_to_oss(const BMP_180_Start_Convers
 		case BMP_180_START_CONVERSION_PRESSURE_OSS_1: return BMP_180_OSS_CONTROL_2;
 		case BMP_180_START_CONVERSION_PRESSURE_OSS_2: return BMP_180_OSS_CONTROL_4;
 		case BMP_180_START_CONVERSION_PRESSURE_OSS_3: return BMP_180_OSS_CONTROL_8;
-		case BMP_180_START_CONVERSION_TEMPERATURE   : return BMP_180_OSS_CONTROL_1;
+
+		case BMP_180_START_CONVERSION_TEMPERATURE:    break;
 	}
 
-	return BMP_180_OSS_CONTROL_1;
+	return BMP_180_OSS_CONTROL_8;
 }
 
 
-static useconds_t convert_conversion_to_sleep_inverval(const BMP_180_OSS_Control c)
+static useconds_t convert_oss_to_sleep_inverval(const BMP_180_OSS_Control c)
 {
 	switch(c)
 	{
@@ -75,80 +118,41 @@ static useconds_t convert_conversion_to_sleep_inverval(const BMP_180_OSS_Control
 }
 
 
-#include <stdio.h>
-static float convert_raw_to_pressure(const uint8_t bytes[3], const BMP_180_OSS_Control oss, const BMP_180_Calibration* cal)
+static void raw_read_bmp_180(uint8_t bytes[3], const int fd, const BMP_180_Start_Conversion s)
 {
-	const int _oss = ((int) oss) >> 6; // the oss value is the upper 2 bits of a register
+	const BMP_180_OSS_Control oss = convert_conversion_to_oss(s);
+	const useconds_t sleep_interval = convert_oss_to_sleep_inverval(oss);
 
-	// pressure values are 19 bit with their maximum resolution
-	const uint32_t reading =
-		//(bytes[2] << 11) | (bytes[1] << 3) | (bytes[0] & 0b00000111);
-		(bytes[2] << 8) | (bytes[1]);
-
-	const int32_t  x1  = (reading - cal->ac6) * cal->ac5 / (1 << 12);
-	const int32_t  x2  = (cal->mc * (1 << 11)) / (x1 + cal->md);
-	const int32_t  b5  = x1 + x2;
-	const int32_t  b6  = b5 - 4000;
-	const int32_t  x12 = (cal->b2 * b6 * b6 * (1 << 12)) / (1 << 11);
-	const int32_t  x22 = cal->ac2 * b6 / (1 << 11);
-	const int32_t  x32 = x12 + x22;
-	const int32_t  b3  = (((cal->ac1 * 4 + x32) << _oss) + 2) / 4;
-	const int32_t  x13 = cal->ac3 * b6 / (1 << 13);
-	const int32_t  x23 = cal->b1 * b6 * b6 / (1 << 12) / (1 << 16);
-	const int32_t  x33 = (x13 + x23 + 2) / (1 << 2);
-	const uint32_t b4  = cal->ac4 * ((uint32_t) x33 + 32768) / (1 << 15);
-	const uint32_t b7  = ((uint32_t) reading - b3) * (50000 >> _oss);
-	const int32_t  p   = b7 < 0x80000000
-		? b7 * 2 / b4
-		: b7 / b4 * 2
+	const size_t read_size = BMP_180_START_CONVERSION_TEMPERATURE == s
+		? 2
+		: 3
 		;
-	const int32_t  x14 = p * p / (1 << 16);
-	const int32_t  x15 = x14 * 3038 / (1 << 16);
-	const int32_t  x25 = (-7357 * p) / (1 << 16);
 
-	printf(
-			"%s,%d >> 6 = %d,%u,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%u,%u,%d,%d,%d,%d\n"
-			, __FUNCTION__
-			, oss
-			, _oss
-			, reading
-			, x1
-			, x2
-			, b5
-			, b6
-			, x12
-			, x22
-			, x32
-			, b3
-			, x13
-			, x23
-			, x33
-			, b4
-			, b7
-			, p
-			, x14
-			, x15
-			, x25
-			);
+	const uint8_t start_address = BMP_180_START_CONVERSION_TEMPERATURE == s
+		? BMP_180_REGISTER_OUT_LSB
+		: BMP_180_REGISTER_OUT_XLSB
+		;
 
-	return p + (x15 + x25 + 3791) / (1 << 4);
+	uint8_t write_buf[1] = { (uint8_t) s };
+	write(fd, write_buf, 1);
+
+	// sensor does not have an interrupt pin
+	usleep(sleep_interval);
+
+	write_buf[0] = start_address;
+	write(fd, write_buf, 1);
+
+	uint8_t* p = BMP_180_START_CONVERSION_TEMPERATURE == s
+		? bytes + 1
+		: bytes
+		;
+
+	bytes[0] = 0;
+	read(fd, p, read_size);
 }
 
 
-static float convert_raw_to_temperature(const uint8_t bytes[3], const BMP_180_Calibration* cal)
-{
-	// xlsb byte should be 0, skip it
-	const uint32_t reading = (bytes[2] << 8) | (bytes[1]);
-
-	const int32_t x1 = (reading - cal->ac6) * cal->ac5 / (1 << 15);
-	const int32_t x2 = (cal->mc * (1 << 11)) / (x1 + cal->md);
-	const int32_t b5 = x1 + x2;
-
-	return (b5 + 8) / (1 << 4);
-}
-
-
-BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_CALIBRATION_NUMBER])
+static BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_CALIBRATION_NUMBER])
 {
 	const size_t size           = (size_t) BMP_180_CALIBRATION_NUMBER;
 	const size_t _size          = size /2;
@@ -179,77 +183,7 @@ BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_CALIBRA
 }
 
 
-BMP_180_Calibration get_bmp_calibration(int fd)
-{
-	const size_t size = BMP_180_CALIBRATION_NUMBER;
-	uint8_t read_buffer[size];
-
-	const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
-	write(fd, write_buf, 1);
-	read(fd, read_buffer, BMP_180_CALIBRATION_NUMBER);
-	return compute_bmp_calibrations(read_buffer);
-}
-
-
-float read_bmp_180(const int fd, const BMP_180_Start_Conversion s, const BMP_180_Calibration* cal)
-{
-	const BMP_180_OSS_Control oss = convert_conversion_to_oss(s);
-	const useconds_t sleep_interval = convert_conversion_to_sleep_inverval(oss);
-
-	//const size_t read_size = BMP_180_START_CONVERSION_TEMPERATURE == s
-	//	? 2
-	//	: 3
-	//	;
-
-	//const uint8_t start_address = BMP_180_START_CONVERSION_TEMPERATURE == s
-	//	? BMP_180_REGISTER_OUT_LSB
-	//	: BMP_180_REGISTER_OUT_XLSB
-	//	;
-
-	//uint8_t write_buf[1] = { (uint8_t) s };
-	//write(fd, write_buf, 1);
-
-	//// sensor does not have an interrupt pin
-	//usleep(sleep_interval);
-
-	//write_buf[0] = start_address;
-	//write(fd, write_buf, 1);
-
-	//uint8_t read_buf[3] = { 0 };
-	//uint8_t* p = BMP_180_START_CONVERSION_TEMPERATURE == s
-	//	? read_buf + 1
-	//	: read_buf
-	//	;
-
-	//read(fd, p, read_size);
-
-	// 27898 temperature = 0x6CFA
-	uint8_t read_buf[3] = { 0 };
-
-
-	if (BMP_180_START_CONVERSION_TEMPERATURE == s)
-	{
-		read_buf[0] = 0;
-		read_buf[1] = 0xfa;
-		read_buf[2] = 0x6c;
-	}
-	else
-	{
-		read_buf[0] = 0;
-		read_buf[1] = 0x23;
-		read_buf[2] = 0x5d;
-	}
-
-	if (BMP_180_START_CONVERSION_TEMPERATURE == s)
-	{
-		return convert_raw_to_temperature(read_buf, cal);
-	}
-
-	return convert_raw_to_pressure(read_buf, oss, cal);
-}
-
-
-int setup_bmp_180_fd(const char* device_path)
+static int setup_bmp_180_fd(const char* device_path)
 {
 	const int file = open(device_path, O_RDWR);
 	ioctl(file, I2C_SLAVE, I2CDETECT_ADDRESS);
@@ -257,9 +191,125 @@ int setup_bmp_180_fd(const char* device_path)
 }
 
 
+BMP_180_Calibration get_bmp_calibration(int fd)
+{
+	const size_t size = BMP_180_CALIBRATION_NUMBER;
+	uint8_t buffer[size];
+
+	const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
+	write(fd, write_buf, 1);
+	read(fd, buffer, BMP_180_CALIBRATION_NUMBER);
+	return compute_bmp_calibrations(buffer);
+}
+
+
 void setup_bmp_180(int* fd, BMP_180_Calibration* cal)
 {
 	*fd  = setup_bmp_180_fd("/dev/i2c-1");
 	*cal = get_bmp_calibration(*fd);
+}
+
+
+void read_bmp_180(float* true_temperature, float* true_pressure, const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c)
+{
+	uint8_t b[3] = { 0 };
+	raw_read_bmp_180(b, fd, BMP_180_START_CONVERSION_TEMPERATURE);
+
+	// temperature is 16 bit, skip xlsb
+	const int32_t ut = ((b[2] << 8) | b[1]) & ((1 << 16) - 1);
+
+	const BMP_180_Start_Conversion conversion = convert_oss_to_conversion(c);
+
+	raw_read_bmp_180(b, fd, conversion);
+
+	// pressure is up to 19 bit, use them
+	const int32_t up = ((b[2] << 11) | (b[1] << 3) | (b[0] & 0x0b00000111)) & ((1 << 19) - 1);
+
+	// the control enumeration is the oss value shifted into the correct position
+	const int oss = ((int) c) >> 6;
+
+	const  int32_t x11 = (ut - cal->ac6) * cal->ac5 / (1 << 15);
+	const  int32_t x21 = cal->mc * (1 << 11) / (x11 + cal->md);
+ 	const  int32_t b5  = x11 + x21;
+ 	const  int32_t b6  = b5 - 4000;
+ 	const  int32_t x12 = cal->b2 * b6 * b6 / (1 << 23);
+ 	const  int32_t x22 = cal->ac2 * b6 / (1 << 11);
+ 	const  int32_t x32 = x12 + x22;
+ 	const  int32_t b3  = (((cal->ac1 * 4 + x32) << oss) + 2) / 4;
+ 	const  int32_t x13 = cal->ac3 * b6 / (1 << 13);
+ 	const  int32_t x23 = cal->b1 * b6 * b6 / (1 << 28);
+ 	const  int32_t x33 = (x13 + x23 + 2) / (1 << 2);
+ 	const uint32_t b4  = cal->ac4 * (uint32_t)(x33 + 32768) / (1 << 15);
+ 	const uint32_t b7  = ((uint32_t) up - b3) * (50000 >> oss);
+ 	const  int32_t p   = b7 < 0x80000000
+ 	                   ? b7 * 2 / b4
+ 	                   : b7 / b4 * 2
+ 	                   ;
+ 	const  int32_t x14 = p * p / (1 << 16);
+	const  int32_t x15 = x14 * 3038 / (1 << 16);
+ 	const  int32_t x24 = (-7357) * p / (1 << 16);
+
+ 	*true_temperature  = ((float) ((b5 + 8) / (1 << 4))) / 10.0f;
+ 	*true_pressure     = p + (x15 + x24 + 3791) / (1 << 4);
+}
+
+#include <stdio.h>
+void debug_read_bmp_180(const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c)
+{
+	const uint32_t oss = ((uint32_t) c) >> 6;
+	const  int32_t ut  = 27898;
+	const  int32_t up  = 23843;
+	const  int32_t x11 = (ut - cal->ac6) * cal->ac5 / (1 << 15);
+	const  int32_t x21 = cal->mc * (1 << 11) / (x11 + cal->md);
+ 	const  int32_t b5  = x11 + x21;
+ 	const  int32_t b6  = b5 - 4000;
+ 	const  int32_t x12 = cal->b2 * b6 * b6 / (1 << 23);
+ 	const  int32_t x22 = cal->ac2 * b6 / (1 << 11);
+ 	const  int32_t x32 = x12 + x22;
+ 	const  int32_t b3  = (((cal->ac1 * 4 + x32) << oss) + 2) / 4;
+ 	const  int32_t x13 = cal->ac3 * b6 / (1 << 13);
+ 	const  int32_t x23 = cal->b1 * b6 * b6 / (1 << 28);
+ 	const  int32_t x33 = (x13 + x23 + 2) / (1 << 2);
+ 	const uint32_t b4  = cal->ac4 * (uint32_t)(x33 + 32768) / (1 << 15);
+ 	const uint32_t b7  = ((uint32_t) up - b3) * (50000 >> oss);
+ 	const  int32_t p   = b7 < 0x80000000
+ 	                   ? b7 * 2 / b4
+ 	                   : b7 / b4 * 2
+ 	                   ;
+ 	const  int32_t x14 = p * p / (1 << 16);
+	const  int32_t x15 = x14 * 3038 / (1 << 16);
+ 	const  int32_t x24 = (-7357) * p / (1 << 16);
+
+ 	float true_temperature = ((float) ((b5 + 8) / (1 << 4))) / 10.0f;
+ 	float true_pressure    = p + (x15 + x24 + 3791) / (1 << 4);
+
+	printf(
+		"%s,%d,%d,%d,%d,%d,%d,%f,%d,%d,%d,%d,%d,%d,%d,%d,%u,%u,%d,%d,%d,%d,%f\n"
+  	, __FUNCTION__
+		, ut
+		, oss
+		, up
+		, x11
+		, x21
+ 		, b5
+		, true_temperature
+ 		, b6
+ 		, x12
+ 		, x22
+ 		, x32
+ 		, b3
+ 		, x13
+ 		, x23
+ 		, x33
+ 		, b4
+ 		, b7
+ 		, p
+ 		, x14
+		, x15
+ 		, x24
+		, true_pressure
+  );
+
+	(void) fd;
 }
 
