@@ -115,11 +115,11 @@ static int32_t raw_read_temperature(const int fd)
 	write(fd, write_buf, sizeof(write_buf));
 	usleep(sleep_interval); // wish the sensor had an interrupt pin
 
-    write_buf[0] = BMP_180_REGISTER_OUT_MSB;
-    write(fd, write_buf, 1);
-    read(fd, read_buf, sizeof(read_buf));
+  write_buf[0] = BMP_180_REGISTER_OUT_MSB;
+  write(fd, write_buf, 1);
+  read(fd, read_buf, sizeof(read_buf));
 
-    return ((read_buf[0] << 8) | read_buf[1]) & ((1 << 16) - 1);
+  return ((read_buf[0] << 8) | read_buf[1]) & ((1 << 16) - 1);
 }
 
 
@@ -133,20 +133,20 @@ static int32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
 	write(fd, write_buf, sizeof(write_buf));
 	usleep(sleep_interval); // wish the sensor had an interrupt pin
 
-    write_buf[0] = BMP_180_REGISTER_OUT_MSB;
-    write(fd, write_buf, 1);
-    read(fd, read_buf, sizeof(read_buf));
+  write_buf[0] = BMP_180_REGISTER_OUT_MSB;
+  write(fd, write_buf, 1);
+  read(fd, read_buf, sizeof(read_buf));
 
 	printf("%s:oss=%d,", __FUNCTION__, c >> 6);
-    for(size_t i = 0; i < sizeof(read_buf); i ++)
-    {
-      printf("%.2X,", read_buf[i] & 0xFF);
-    }
-    printf("\n");
+  for(size_t i = 0; i < sizeof(read_buf); i ++)
+  {
+    printf("%.2X,", read_buf[i] & 0xFF);
+  }
+  printf("\n");
 
-    const int32_t raw_pressure = (read_buf[0] << 16) | (read_buf[1] << 8) | read_buf[2];
-    const int32_t oss_corrected_pressure = raw_pressure >> (8 - (c >> 6));
-    return oss_corrected_pressure & ((1 << 19) - 1);
+  const int32_t raw_pressure = (read_buf[0] << 16) | (read_buf[1] << 8) | read_buf[2];
+  const int32_t oss_corrected_pressure = raw_pressure >> (8 - (c >> 6));
+  return oss_corrected_pressure & ((1 << 19) - 1);
 }
 
 
