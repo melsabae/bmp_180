@@ -39,7 +39,7 @@ int main(int argc, char** argv)
 			printf("%lu, %f = degrees C, %f = pascals, %f = meters\n\n", i, temp, press, altitude);
 		}
 
-		usleep(1E6);
+		usleep(1E6 / 15);
 	}
 
   return 0;

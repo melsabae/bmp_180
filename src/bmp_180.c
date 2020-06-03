@@ -29,10 +29,10 @@ typedef enum
 typedef enum
 {
     BMP_180_START_CONVERSION_TEMPERATURE    = BMP_180_MEASUREMENT_CONTROL_TEMPERATURE    | BMP_180_SCO_START_CONVERSION
-  , BMP_180_START_CONVERSION_PRESSURE_OSS_0 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_0 | BMP_180_SCO_START_CONVERSION
-  , BMP_180_START_CONVERSION_PRESSURE_OSS_1 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_1 | BMP_180_SCO_START_CONVERSION
-  , BMP_180_START_CONVERSION_PRESSURE_OSS_2 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_2 | BMP_180_SCO_START_CONVERSION
-  , BMP_180_START_CONVERSION_PRESSURE_OSS_3 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_3 | BMP_180_SCO_START_CONVERSION
+  , BMP_180_START_CONVERSION_PRESSURE_OSS_0 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_0
+  , BMP_180_START_CONVERSION_PRESSURE_OSS_1 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_1
+  , BMP_180_START_CONVERSION_PRESSURE_OSS_2 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_2
+  , BMP_180_START_CONVERSION_PRESSURE_OSS_3 = BMP_180_MEASUREMENT_CONTROL_PRESSURE_OSS_3
 } BMP_180_Start_Conversion;
 
 
@@ -109,24 +109,19 @@ static uint32_t raw_read_temperature(const int fd)
 {
 	const BMP_180_Start_Conversion s = BMP_180_START_CONVERSION_TEMPERATURE;
 	const useconds_t sleep_interval = convert_convesion_to_sleep_interval(s);
-	const uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
+	uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
 	uint8_t read_buf[4] = { 0 };
+
 	write(fd, write_buf, sizeof(write_buf));
-
-	// sensor does not have an interrupt pin
-	usleep(sleep_interval);
-
+	usleep(sleep_interval); // wish the sensor had an interrupt pin
 	read(fd, read_buf, sizeof(read_buf));
 
-	//printf("%s:", __FUNCTION__);
-    //for(size_t i = 0; i < sizeof(read_buf); i ++)
-    //{
-    //  printf("%.2X,", read_buf[i] & 0xFF);
-    //}
-    //printf("\n");
+    write_buf[0] = BMP_180_REGISTER_OUT_MSB;
+    write(fd, write_buf, 1);
+    read(fd, read_buf, sizeof(read_buf));
 
 	// temperature is 16 bit, skip xlsb
-    return ((read_buf[2] << 8) | read_buf[3]) & ((1 << 16) - 1);
+    return ((read_buf[0] << 8) | read_buf[1]) & ((1 << 16) - 1);
 }
 
 
@@ -135,25 +130,26 @@ static uint32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
 	const BMP_180_Start_Conversion s = convert_oss_to_conversion(c);
 	const useconds_t sleep_interval = convert_convesion_to_sleep_interval(s);
 	uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
-	uint8_t read_buf[5] = { 0 };
+	uint8_t read_buf[15] = { 0 };
 
 	write(fd, write_buf, sizeof(write_buf));
+	usleep(sleep_interval); // wish the sensor had an interrupt pin
+	read(fd, read_buf, sizeof(read_buf));
 
-	// sensor does not have an interrupt pin
-	usleep(sleep_interval);
-
+    write_buf[0] = BMP_180_REGISTER_OUT_MSB;
+    write(fd, write_buf, 1);
     read(fd, read_buf, sizeof(read_buf));
 
-	printf("%s:oss=%d,", __FUNCTION__, c);
+	printf("%s:oss=%d,", __FUNCTION__, (8 - (c >> 6)));
     for(size_t i = 0; i < sizeof(read_buf); i ++)
     {
       printf("%.2X,", read_buf[i] & 0xFF);
     }
     printf("\n");
 
-	// pressure is up to 19 bit
-    return ((read_buf[2] << 11) | (read_buf[3] << 3) | (read_buf[4] & 0x0b00000111)) & ((1 << 19) - 1);
-    //return ((read_buf[2] << 8) | read_buf[3]) & ((1 << 16) - 1);
+    const uint32_t raw_pressure = (read_buf[0] << 16) | (read_buf[1] << 8) | read_buf[2];
+    const uint32_t oss_corrected_pressure = raw_pressure >> (8 - (c >> 6));
+    return oss_corrected_pressure & ((1 << 19) - 1);
 }
 
 
