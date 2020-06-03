@@ -28,7 +28,6 @@ int main(int argc, char** argv)
 
 	while(true)
 	{
-		//debug_read_bmp_180();
 
 		for(size_t i = 0; i < 4; i ++)
 		{
