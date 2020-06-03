@@ -118,10 +118,13 @@ static void raw_read_bmp_180(uint8_t bytes[3], const int fd, const BMP_180_Start
 }
 
 
+#include <stdio.h>
 static uint32_t raw_read_temperature(const int fd)
 {
 	uint8_t b[3] = { 0 };
 	raw_read_bmp_180(b, fd, BMP_180_START_CONVERSION_TEMPERATURE);
+
+	printf("%s:%d,%d,%d\n", __FUNCTION__, b[0], b[1], b[2]);
 
 	// temperature is 16 bit, skip xlsb
   return ((b[2] << 8) | b[1]) & ((1 << 16) - 1);
@@ -134,6 +137,8 @@ static uint32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
 
 	uint8_t b[3] = { 0 };
 	raw_read_bmp_180(b, fd, s);
+
+	printf("%s:oss=%d,%d,%d,%d\n", __FUNCTION__, c, b[0], b[1], b[2]);
 
 	// pressure is up to 19 bit
 	return ((b[2] << 11) | (b[1] << 3) | (b[0] & 0x0b00000111)) & ((1 << 19) - 1);
@@ -248,7 +253,6 @@ void read_bmp_180_all(float* true_temperature, float* true_pressure, float* alti
 }
 
 
-#include <stdio.h>
 void debug_read_bmp_180()
 {
 	BMP_180_Calibration _cal =
