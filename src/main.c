@@ -9,7 +9,7 @@ int main(int argc, char** argv)
 	int fd = 0;
 	BMP_180_Calibration cal;
 
-	setup_bmp_180(&fd, &cal);
+	setup_bmp_180(&fd, &cal, "/dev/i2c-1");
 
 	printf(
 			  "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n"

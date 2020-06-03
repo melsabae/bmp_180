@@ -198,9 +198,9 @@ BMP_180_Calibration get_bmp_calibration(int fd)
 }
 
 
-void setup_bmp_180(int* fd, BMP_180_Calibration* cal)
+void setup_bmp_180(int* fd, BMP_180_Calibration* cal, const char* file_path)
 {
-	*fd  = setup_bmp_180_fd("/dev/i2c-1");
+	*fd  = setup_bmp_180_fd(file_path);
 	*cal = get_bmp_calibration(*fd);
 }
 

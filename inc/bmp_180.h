@@ -35,7 +35,7 @@ typedef enum
 
 
 BMP_180_Calibration get_bmp_calibration(int fd);
-void setup_bmp_180(int* fd, BMP_180_Calibration* cal);
+void setup_bmp_180(int* fd, BMP_180_Calibration* cal, const char* file_path);
 void read_bmp_180(float* true_temperature, float* true_pressure, const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c);
 float bmp_180_altitude(const float true_pressure);
 void read_bmp_180_all(float* true_temperature, float* true_pressure, float* altitude, const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c);
