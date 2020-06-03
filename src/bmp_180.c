@@ -2,6 +2,7 @@
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
+#include <math.h>
 #include "bmp_180.h"
 
 
@@ -252,6 +253,13 @@ void read_bmp_180(float* true_temperature, float* true_pressure, const int fd, c
  	*true_temperature  = ((float) ((b5 + 8) / (1 << 4))) / 10.0f;
  	*true_pressure     = p + (x15 + x24 + 3791) / (1 << 4);
 }
+
+
+float bmp_180_altitude(const float true_pressure)
+{
+	return 44330.0 * pow(1.0f - (true_pressure / 101325.0f), 1/5255);
+}
+
 
 #include <stdio.h>
 void debug_read_bmp_180(const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c)

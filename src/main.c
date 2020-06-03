@@ -48,6 +48,9 @@ int main(int argc, char** argv)
 		for(size_t i = 0; i < 4; i ++)
 		{
 			read_bmp_180(&temp, &press, fd, &cal, (BMP_180_OSS_Control) i);
+			float altitude = bmp_180_altitude(press);
+
+			printf("%lu, %f = degrees C, %f = pascals, %f = meters\n", i, temp, press, altitude);
 		}
 	}
 
