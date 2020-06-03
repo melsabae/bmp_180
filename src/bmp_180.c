@@ -89,22 +89,6 @@ static BMP_180_Start_Conversion convert_oss_to_conversion(const BMP_180_OSS_Cont
 }
 
 
-static BMP_180_OSS_Control convert_conversion_to_oss(const BMP_180_Start_Conversion s)
-{
-	switch(s)
-	{
-		case BMP_180_START_CONVERSION_PRESSURE_OSS_0: return BMP_180_OSS_CONTROL_1;
-		case BMP_180_START_CONVERSION_PRESSURE_OSS_1: return BMP_180_OSS_CONTROL_2;
-		case BMP_180_START_CONVERSION_PRESSURE_OSS_2: return BMP_180_OSS_CONTROL_4;
-		case BMP_180_START_CONVERSION_PRESSURE_OSS_3: return BMP_180_OSS_CONTROL_8;
-
-		case BMP_180_START_CONVERSION_TEMPERATURE:    break;
-	}
-
-	return BMP_180_OSS_CONTROL_8;
-}
-
-
 static useconds_t convert_oss_to_sleep_inverval(const BMP_180_Start_Conversion s)
 {
 	switch(s)
@@ -248,10 +232,34 @@ float bmp_180_altitude(const float true_pressure)
 }
 
 
-#include <stdio.h>
-void debug_read_bmp_180(const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c)
+void read_bmp_180_all(float* true_temperature, float* true_pressure, float* altitude, const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c)
 {
-	const uint32_t oss = ((uint32_t) c) >> 6;
+	read_bmp_180(true_temperature, true_pressure, fd, cal, c);
+	*altitude = bmp_180_altitude(*true_pressure);
+}
+
+
+#include <stdio.h>
+void debug_read_bmp_180()
+{
+	BMP_180_Calibration _cal =
+	{
+	  .ac1 = 408,
+	  .ac2 = -72,
+	  .ac3 = -14383,
+	  .ac4 = 32741,
+	  .ac5 = 32757,
+	  .ac6 = 23153,
+	  .b1  = 6190,
+	  .b2  = 4,
+	  .mb  = -32768,
+	  .mc  = -8711,
+	  .md  = 2868,
+	};
+
+	BMP_180_Calibration* cal = &_cal;
+
+	const uint32_t oss = ((uint32_t) 0) >> 6;
 	const  int32_t ut  = 27898;
 	const  int32_t up  = 23843;
 	const  int32_t x11 = (ut - cal->ac6) * cal->ac5 / (1 << 15);
@@ -277,9 +285,10 @@ void debug_read_bmp_180(const int fd, const BMP_180_Calibration* cal, const BMP_
 
  	float true_temperature = ((float) ((b5 + 8) / (1 << 4))) / 10.0f;
  	float true_pressure    = p + (x15 + x24 + 3791) / (1 << 4);
+	float altitude         = bmp_180_altitude(true_pressure);
 
 	printf(
-		"%s,%d,%d,%d,%d,%d,%d,%f,%d,%d,%d,%d,%d,%d,%d,%d,%u,%u,%d,%d,%d,%d,%f\n"
+		"%s,%d,%d,%d,%d,%d,%d,%f,%d,%d,%d,%d,%d,%d,%d,%d,%u,%u,%d,%d,%d,%d,%f,%f\n"
   	, __FUNCTION__
 		, ut
 		, oss
@@ -303,8 +312,7 @@ void debug_read_bmp_180(const int fd, const BMP_180_Calibration* cal, const BMP_
 		, x15
  		, x24
 		, true_pressure
+		, altitude
   );
-
-	(void) fd;
 }
 
