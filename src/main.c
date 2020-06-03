@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include "bmp_180.h"
 
 
@@ -8,7 +9,7 @@ int main(int argc, char** argv)
 	int fd = 0;
 	BMP_180_Calibration cal;
 
-	//setup_bmp_180(&fd, &cal);
+	setup_bmp_180(&fd, &cal);
 
 	printf(
 			  "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n"
@@ -47,10 +48,13 @@ int main(int argc, char** argv)
 
 		for(size_t i = 0; i < 4; i ++)
 		{
-			read_bmp_180(&temp, &press, fd, &cal, (BMP_180_OSS_Control) i);
+			read_bmp_180(&temp, &press, fd, &cal, i << 6);
+
 			float altitude = bmp_180_altitude(press);
 
-			printf("%lu, %f = degrees C, %f = pascals, %f = meters\n", i, temp, press, altitude);
+			printf("%lu, %f = degrees C, %f = pascals, %f = meters\n\n", i, temp, press, altitude);
+
+            usleep(1E6);
 		}
 	}
 
