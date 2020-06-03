@@ -114,7 +114,29 @@ static void raw_read_bmp_180(uint8_t bytes[3], const int fd, const BMP_180_Start
 	// sensor does not have an interrupt pin
 	usleep(sleep_interval);
 
-    read(fd, bytes, 3);
+	read(fd, bytes, 3);
+}
+
+
+static uint32_t raw_read_temperature(const int fd)
+{
+	uint8_t b[3] = { 0 };
+	raw_read_bmp_180(b, fd, BMP_180_START_CONVERSION_TEMPERATURE);
+
+	// temperature is 16 bit, skip xlsb
+  return ((b[2] << 8) | b[1]) & ((1 << 16) - 1);
+}
+
+
+static uint32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
+{
+	const BMP_180_Start_Conversion s = convert_oss_to_conversion(c);
+
+	uint8_t b[3] = { 0 };
+	raw_read_bmp_180(b, fd, s);
+
+	// pressure is up to 19 bit
+	return ((b[2] << 11) | (b[1] << 3) | (b[0] & 0x0b00000111)) & ((1 << 19) - 1);
 }
 
 
@@ -207,22 +229,9 @@ void setup_bmp_180(int* fd, BMP_180_Calibration* cal, const char* file_path)
 
 void read_bmp_180(float* true_temperature, float* true_pressure, const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c)
 {
-	uint8_t b[3] = { 0 };
-	raw_read_bmp_180(b, fd, BMP_180_START_CONVERSION_TEMPERATURE);
-
-	// temperature is 16 bit, skip xlsb
-	const int32_t ut =
-      ((b[2] << 8) | b[1]) & ((1 << 16) - 1);
-
-	const BMP_180_Start_Conversion conversion = convert_oss_to_conversion(c);
-
-	raw_read_bmp_180(b, fd, conversion);
-
-	// pressure is up to 19 bit
-	const int32_t up =
-      ((b[2] << 11) | (b[1] << 3) | (b[0] & 0x0b00000111)) & ((1 << 19) - 1);
-
-    convert_raw_to_true(true_temperature, true_pressure, ut, up, c, cal);
+	const int32_t ut = raw_read_temperature(fd);
+	const int32_t up = raw_read_pressure(fd, c);
+  convert_raw_to_true(true_temperature, true_pressure, ut, up, c, cal);
 }
 
 
