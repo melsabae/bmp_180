@@ -89,11 +89,11 @@ static BMP_180_Start_Conversion convert_oss_to_conversion(const BMP_180_OSS_Cont
 }
 
 
-static useconds_t convert_oss_to_sleep_inverval(const BMP_180_Start_Conversion s)
+static useconds_t convert_convesion_to_sleep_interval(const BMP_180_Start_Conversion s)
 {
 	switch(s)
 	{
-        case BMP_180_START_CONVERSION_TEMPERATURE   : return 4500;  // 4.5 ms
+		case BMP_180_START_CONVERSION_TEMPERATURE   : return 4500;  // 4.5 ms
 		case BMP_180_START_CONVERSION_PRESSURE_OSS_0: return 4500;  // 4.5 ms
 		case BMP_180_START_CONVERSION_PRESSURE_OSS_1: return 7500;  // 7.5 ms
 		case BMP_180_START_CONVERSION_PRESSURE_OSS_2: return 13500; // 13.5 ms
@@ -104,44 +104,41 @@ static useconds_t convert_oss_to_sleep_inverval(const BMP_180_Start_Conversion s
 }
 
 
-static void raw_read_bmp_180(uint8_t bytes[3], const int fd, const BMP_180_Start_Conversion s)
+#include <stdio.h>
+static uint32_t raw_read_temperature(const int fd)
 {
-	const useconds_t sleep_interval = convert_oss_to_sleep_inverval(s);
-
-	uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
+	const BMP_180_Start_Conversion s = BMP_180_START_CONVERSION_TEMPERATURE;
+	const useconds_t sleep_interval = convert_convesion_to_sleep_interval(s);
+	const uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
+	uint8_t read_buf[3] = { 0 };
 	write(fd, write_buf, 2);
 
 	// sensor does not have an interrupt pin
 	usleep(sleep_interval);
-
-	read(fd, bytes, 3);
-}
-
-
-#include <stdio.h>
-static uint32_t raw_read_temperature(const int fd)
-{
-	uint8_t b[3] = { 0 };
-	raw_read_bmp_180(b, fd, BMP_180_START_CONVERSION_TEMPERATURE);
-
-	printf("%s:%d,%d,%d\n", __FUNCTION__, b[0], b[1], b[2]);
+	read(fd, read_buf, 3);
+	printf("%s:%d,%d,%d\n", __FUNCTION__, read_buf[0], read_buf[1], read_buf[2]);
 
 	// temperature is 16 bit, skip xlsb
-  return ((b[2] << 8) | b[1]) & ((1 << 16) - 1);
+  return ((read_buf[2] << 8) | read_buf[1]) & ((1 << 16) - 1);
 }
 
 
 static uint32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
 {
 	const BMP_180_Start_Conversion s = convert_oss_to_conversion(c);
+	const useconds_t sleep_interval = convert_convesion_to_sleep_interval(s);
+	const uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
+	uint8_t read_buf[3] = { 0 };
 
-	uint8_t b[3] = { 0 };
-	raw_read_bmp_180(b, fd, s);
+	write(fd, write_buf, 2);
 
-	printf("%s:oss=%d,%d,%d,%d\n", __FUNCTION__, c, b[0], b[1], b[2]);
+	// sensor does not have an interrupt pin
+	usleep(sleep_interval);
+	read(fd, read_buf, 3);
+	printf("%s:oss=%d,%d,%d,%d\n", __FUNCTION__, c, read_buf[0], read_buf[1], read_buf[2]);
 
 	// pressure is up to 19 bit
-	return ((b[2] << 11) | (b[1] << 3) | (b[0] & 0x0b00000111)) & ((1 << 19) - 1);
+	return ((read_buf[2] << 11) | (read_buf[1] << 3) | (read_buf[0] & 0x0b00000111)) & ((1 << 19) - 1);
 }
 
 
