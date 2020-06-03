@@ -122,39 +122,15 @@ static useconds_t convert_oss_to_sleep_inverval(const BMP_180_Start_Conversion s
 
 static void raw_read_bmp_180(uint8_t bytes[3], const int fd, const BMP_180_Start_Conversion s)
 {
-  uint8_t read_buf[10] = { 0 };
 	const useconds_t sleep_interval = convert_oss_to_sleep_inverval(s);
-
-	const size_t read_size = BMP_180_START_CONVERSION_TEMPERATURE == s
-		? 2
-		: 3
-		;
 
 	uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
 	write(fd, write_buf, 2);
 
-    bytes[0] = 0;
-
 	// sensor does not have an interrupt pin
 	usleep(sleep_interval);
 
-    write_buf[0] = BMP_180_REGISTER_OUT_XLSB;
-    write(fd, write_buf, 1);
-    read(fd, read_buf, 10);
-
-    printf("%s,%d,", s == BMP_180_START_CONVERSION_TEMPERATURE ? "T" : "P", s);
-    for(size_t i = 0; i < 10; i ++)
-    {
-      printf("[%d]=%d,", i, read_buf[i] & 0xff);
-    }
-    printf(", sleep=%u\n", sleep_interval);
-
-    //printf("%s,%d,", s == BMP_180_START_CONVERSION_TEMPERATURE ? "T" : "P", s);
-    //for(int i = 0; i < 3; i ++)
-    //{
-    //  printf("[%d]=%d,", i, bytes[i] & 0xff);
-    //}
-    //printf(", sleep=%u\n", sleep_interval);
+    read(fd, bytes, 3);
 }
 
 
@@ -197,46 +173,9 @@ static int setup_bmp_180_fd(const char* device_path)
 }
 
 
-BMP_180_Calibration get_bmp_calibration(int fd)
+static void convert_raw_to_true(float* true_temperature, float* true_pressure, const int32_t ut, const int32_t up, const BMP_180_OSS_Control c, const BMP_180_Calibration* cal)
 {
-	const size_t size = BMP_180_CALIBRATION_NUMBER;
-	uint8_t buffer[size];
-
-	const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
-	write(fd, write_buf, 1);
-	read(fd, buffer, BMP_180_CALIBRATION_NUMBER);
-	return compute_bmp_calibrations(buffer);
-}
-
-
-void setup_bmp_180(int* fd, BMP_180_Calibration* cal)
-{
-	*fd  = setup_bmp_180_fd("/dev/i2c-1");
-	*cal = get_bmp_calibration(*fd);
-}
-
-
-void read_bmp_180(float* true_temperature, float* true_pressure, const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c)
-{
-	uint8_t b[3] = { 0 };
-	raw_read_bmp_180(b, fd, BMP_180_START_CONVERSION_TEMPERATURE);
-
-	// temperature is 16 bit, skip xlsb
-	const int32_t ut =
-      ((b[0] << 8) | b[1]) & ((1 << 16) - 1);
-
-	const BMP_180_Start_Conversion conversion = convert_oss_to_conversion(c);
-
-	raw_read_bmp_180(b, fd, conversion);
-
-	// pressure is up to 19 bit, use them
-	const int32_t up =
-      ((b[0] << 11) | (b[1] << 3) | (b[2] & 0x0b00000111)) & ((1 << 19) - 1);
-	//const int32_t up = ((b[2] << 8) | b[1]) & ((1 << 16) - 1);
-
-	// the control enumeration is the oss value shifted into the correct position
-	const int oss = ((int) c) >> 6;
-
+	const uint32_t oss = ((uint32_t) c) >> 6;
 	const  int32_t x11 = (ut - cal->ac6) * cal->ac5 / (1 << 15);
 	const  int32_t x21 = cal->mc * (1 << 11) / (x11 + cal->md);
  	const  int32_t b5  = x11 + x21;
@@ -263,9 +202,49 @@ void read_bmp_180(float* true_temperature, float* true_pressure, const int fd, c
 }
 
 
+BMP_180_Calibration get_bmp_calibration(int fd)
+{
+	const size_t size = BMP_180_CALIBRATION_NUMBER;
+	uint8_t buffer[size];
+
+	const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
+	write(fd, write_buf, 1);
+	read(fd, buffer, BMP_180_CALIBRATION_NUMBER);
+	return compute_bmp_calibrations(buffer);
+}
+
+
+void setup_bmp_180(int* fd, BMP_180_Calibration* cal)
+{
+	*fd  = setup_bmp_180_fd("/dev/i2c-1");
+	*cal = get_bmp_calibration(*fd);
+}
+
+
+void read_bmp_180(float* true_temperature, float* true_pressure, const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c)
+{
+	uint8_t b[3] = { 0 };
+	raw_read_bmp_180(b, fd, BMP_180_START_CONVERSION_TEMPERATURE);
+
+	// temperature is 16 bit, skip xlsb
+	const int32_t ut =
+      ((b[2] << 8) | b[1]) & ((1 << 16) - 1);
+
+	const BMP_180_Start_Conversion conversion = convert_oss_to_conversion(c);
+
+	raw_read_bmp_180(b, fd, conversion);
+
+	// pressure is up to 19 bit
+	const int32_t up =
+      ((b[2] << 11) | (b[1] << 3) | (b[0] & 0x0b00000111)) & ((1 << 19) - 1);
+
+    convert_raw_to_true(true_temperature, true_pressure, ut, up, c, cal);
+}
+
+
 float bmp_180_altitude(const float true_pressure)
 {
-	return 44330.0 * pow(1.0f - (true_pressure / 101325.0f), 1/5255);
+	return 44330.0 * (1.0f - pow((true_pressure / 101325.0f), 1.0f/5.255f));
 }
 
 
