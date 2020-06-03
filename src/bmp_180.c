@@ -105,7 +105,7 @@ static useconds_t convert_convesion_to_sleep_interval(const BMP_180_Start_Conver
 
 
 #include <stdio.h>
-static uint32_t raw_read_temperature(const int fd)
+static int32_t raw_read_temperature(const int fd)
 {
 	const BMP_180_Start_Conversion s = BMP_180_START_CONVERSION_TEMPERATURE;
 	const useconds_t sleep_interval = convert_convesion_to_sleep_interval(s);
@@ -123,7 +123,7 @@ static uint32_t raw_read_temperature(const int fd)
 }
 
 
-static uint32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
+static int32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
 {
 	const BMP_180_Start_Conversion s = convert_oss_to_conversion(c);
 	const useconds_t sleep_interval = convert_convesion_to_sleep_interval(s);
@@ -144,8 +144,8 @@ static uint32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
     }
     printf("\n");
 
-    const uint32_t raw_pressure = (read_buf[0] << 16) | (read_buf[1] << 8) | read_buf[2];
-    const uint32_t oss_corrected_pressure = raw_pressure >> (8 - (c >> 6));
+    const int32_t raw_pressure = (read_buf[0] << 16) | (read_buf[1] << 8) | read_buf[2];
+    const int32_t oss_corrected_pressure = raw_pressure >> (8 - (c >> 6));
     return oss_corrected_pressure & ((1 << 19) - 1);
 }
 
