@@ -152,30 +152,19 @@ static int32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
 
 static BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_CALIBRATION_NUMBER])
 {
-	const size_t size = BMP_180_CALIBRATION_NUMBER / 2;
-	uint16_t raw_values[size];
-	const uint8_t* p = array;
-
-	for(size_t i = 0; i < size; i ++)
+	return (BMP_180_Calibration)
 	{
-		raw_values[i] = ((*p) << 8) | *(p + 1);
-		p  += 2;
-	}
-
-	size_t i = 0;
-
-	return (BMP_180_Calibration) {
-			.ac1 = raw_values[i ++],
-			.ac2 = raw_values[i ++],
-			.ac3 = raw_values[i ++],
-			.ac4 = raw_values[i ++],
-			.ac5 = raw_values[i ++],
-			.ac6 = raw_values[i ++],
-			.b1  = raw_values[i ++],
-			.b2  = raw_values[i ++],
-			.mb  = raw_values[i ++],
-			.mc  = raw_values[i ++],
-			.md  = raw_values[i ++]
+		.ac1 = array[ 0] << 8 | array[ 1],
+		.ac2 = array[ 2] << 8 | array[ 3],
+		.ac3 = array[ 4] << 8 | array[ 5],
+		.ac4 = array[ 6] << 8 | array[ 7],
+		.ac5 = array[ 8] << 8 | array[ 9],
+		.ac6 = array[10] << 8 | array[11],
+		.b1  = array[12] << 8 | array[13],
+		.b2  = array[14] << 8 | array[15],
+		.mb  = array[16] << 8 | array[17],
+		.mc  = array[18] << 8 | array[19],
+		.md  = array[20] << 8 | array[21],
 	};
 }
 
