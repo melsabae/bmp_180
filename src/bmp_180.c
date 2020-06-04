@@ -180,8 +180,8 @@ static int setup_bmp_180_fd(const char* device_path)
 static void convert_raw_to_true(float* true_temperature, float* true_pressure, const int32_t ut, const int32_t up, const BMP_180_OSS_Control c, const BMP_180_Calibration* cal)
 {
 	const uint32_t oss = ((uint32_t) c) >> 6;
-	const  int32_t x11 = (ut - cal->ac6) * cal->ac5 / (1 << 15);
-	const  int32_t x21 = cal->mc * (1 << 11) / (x11 + cal->md);
+	const  int32_t x11 = (ut - ((int32_t)cal->ac6)) * ((int32_t) cal->ac5) / (1 << 15);
+	const  int32_t x21 = ((int32_t) cal->mc) * (1 << 11) / (x11 + cal->md);
  	const  int32_t b5  = x11 + x21;
  	const  int32_t b6  = b5 - 4000;
  	const  int32_t x12 = cal->b2 * b6 * b6 / (1 << 23);
