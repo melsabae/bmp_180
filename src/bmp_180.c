@@ -152,12 +152,11 @@ static int32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
 
 static BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_CALIBRATION_NUMBER])
 {
-	const size_t size           = (size_t) BMP_180_CALIBRATION_NUMBER;
-	const size_t _size          = size /2;
-	const uint8_t* p            = array;
-	uint16_t raw_values[_size];
+	const size_t size = BMP_180_CALIBRATION_NUMBER / 2;
+	uint16_t raw_values[size];
+	const uint8_t* p = array;
 
-	for(size_t i = 0; i < _size; i ++)
+	for(size_t i = 0; i < size; i ++)
 	{
 		raw_values[i] = ((*p) << 8) | *(p + 1);
 		p  += 2;
@@ -218,12 +217,11 @@ static void convert_raw_to_true(float* true_temperature, float* true_pressure, c
 }
 
 
-BMP_180_Calibration get_bmp_calibration(int fd)
+BMP_180_Calibration get_bmp_calibration(const int fd)
 {
-	const size_t size = BMP_180_CALIBRATION_NUMBER;
-	uint8_t buffer[size];
-
 	const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
+	uint8_t buffer[BMP_180_CALIBRATION_NUMBER];
+
 	write(fd, write_buf, 1);
 	read(fd, buffer, BMP_180_CALIBRATION_NUMBER);
 	return compute_bmp_calibrations(buffer);
@@ -247,7 +245,7 @@ void read_bmp_180(float* true_temperature, float* true_pressure, const int fd, c
 
 float bmp_180_altitude(const float true_pressure)
 {
-	return 44330.0 * (1.0f - pow((true_pressure / 101325.0f), 1.0f/5.255f));
+	return 44330.0 * (1.0f - pow(true_pressure / 101325.0f, 1.0f/5.255f));
 }
 
 
