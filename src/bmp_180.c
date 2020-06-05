@@ -115,9 +115,13 @@ int setup_bmp_180_fd(
 		const char* device_path
 		)
 {
-  const int file = open(device_path, O_RDWR);
-  (void) ioctl(file, I2C_SLAVE, I2CDETECT_ADDRESS);
-  return file;
+  const int fd = open(device_path, O_RDWR);
+
+  (void) flock(fd, LOCK_EX);
+  (void) ioctl(fd, I2C_SLAVE, I2CDETECT_ADDRESS);
+  (void) flock(fd, LOCK_UN);
+
+  return fd;
 }
 
 
