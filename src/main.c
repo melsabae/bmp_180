@@ -79,7 +79,7 @@ int main(int argc, char** argv)
 		//usleep(1E6 / 5);
 	}
 
-  return 0;
+	return close(fd);
   (void) argc;
   (void) argv;
 }
