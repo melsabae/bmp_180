@@ -55,12 +55,25 @@ int main(int argc, char** argv)
 
 		for(size_t i = 0; i < 4; i ++)
 		{
-			float temp     = 0.0f;
-			float press    = 0.0f;
-			float altitude = 0.0f;
+			float temp_c         = 0.0f;
+			float press_Pa       = 0.0f;
 
-			read_bmp_180_all(&temp, &press, &altitude, ref_pressure, fd, &cal, i << 6);
-			printf("%lu, %.1f C, %.0f Pa, %f m\n", i, temp, press, altitude);
+			read_bmp_180(&temp_c, &press_Pa, fd, &cal, (i << 6) & (0x03));
+
+			const float altitude_abs   =
+				bmp_180_altitude_from_ref(press_Pa, SEA_LEVEL_PRESSURE_PASCALS);
+
+			const float altitude_delta =
+				bmp_180_altitude_from_ref(press_Pa, ref_pressure);
+
+			printf(
+					  "%lu, %.1f C, %.0f Pa, %f m, %f m\n"
+					, i
+					, temp_c
+					, press_Pa
+					, altitude_delta
+					, altitude_abs
+					);
 		}
 
 		usleep(1E6 / 5);
