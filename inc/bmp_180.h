@@ -100,10 +100,28 @@ typedef enum
 } BMP_180_Registers;
 
 
+BMP_180_Start_Conversion convert_oss_to_conversion(const BMP_180_OSS_Control c);
+
+useconds_t convert_convesion_to_sleep_interval(const BMP_180_Start_Conversion s);
+
+int32_t raw_read_temperature(const int fd);
+
+int32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c);
+
+BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_CALIBRATION_BYTES]);
+
+int setup_bmp_180_fd(const char* device_path);
+
+void convert_raw_to_true(float* true_temperature, float* true_pressure, const int32_t ut, const int32_t up, const BMP_180_OSS_Control c, const BMP_180_Calibration* cal);
+
 BMP_180_Calibration get_bmp_calibration(const int fd);
+
 void setup_bmp_180(int* fd, BMP_180_Calibration* cal, const char* file_path);
+
 void read_bmp_180(float* true_temperature, float* true_pressure, const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c);
+
 float bmp_180_altitude(const float true_pressure);
+
 void read_bmp_180_all(float* true_temperature, float* true_pressure, float* altitude, const int fd, const BMP_180_Calibration* cal, const BMP_180_OSS_Control c);
 
 

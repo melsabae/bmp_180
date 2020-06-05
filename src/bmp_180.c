@@ -3,13 +3,12 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <math.h>
+#include <inttypes.h>
+
 #include "bmp_180.h"
 
 
-#include <inttypes.h>
-
-
-static BMP_180_Start_Conversion convert_oss_to_conversion(const BMP_180_OSS_Control c)
+BMP_180_Start_Conversion convert_oss_to_conversion(const BMP_180_OSS_Control c)
 {
   switch(c)
   {
@@ -23,7 +22,7 @@ static BMP_180_Start_Conversion convert_oss_to_conversion(const BMP_180_OSS_Cont
 }
 
 
-static useconds_t convert_convesion_to_sleep_interval(const BMP_180_Start_Conversion s)
+useconds_t convert_convesion_to_sleep_interval(const BMP_180_Start_Conversion s)
 {
   switch(s)
   {
@@ -38,8 +37,7 @@ static useconds_t convert_convesion_to_sleep_interval(const BMP_180_Start_Conver
 }
 
 
-#include <stdio.h>
-static int32_t raw_read_temperature(const int fd)
+int32_t raw_read_temperature(const int fd)
 {
   const BMP_180_Start_Conversion s = BMP_180_START_CONVERSION_TEMPERATURE;
   const useconds_t sleep_interval = convert_convesion_to_sleep_interval(s);
@@ -57,7 +55,7 @@ static int32_t raw_read_temperature(const int fd)
 }
 
 
-static int32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
+int32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
 {
   const BMP_180_Start_Conversion s = convert_oss_to_conversion(c);
   const useconds_t sleep_interval = convert_convesion_to_sleep_interval(s);
@@ -76,7 +74,7 @@ static int32_t raw_read_pressure(const int fd, const BMP_180_OSS_Control c)
 }
 
 
-static BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_CALIBRATION_BYTES])
+BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_CALIBRATION_BYTES])
 {
   return (BMP_180_Calibration)
   {
@@ -95,7 +93,7 @@ static BMP_180_Calibration compute_bmp_calibrations(const uint8_t array[BMP_180_
 }
 
 
-static int setup_bmp_180_fd(const char* device_path)
+int setup_bmp_180_fd(const char* device_path)
 {
   const int file = open(device_path, O_RDWR);
   ioctl(file, I2C_SLAVE, I2CDETECT_ADDRESS);
@@ -103,7 +101,7 @@ static int setup_bmp_180_fd(const char* device_path)
 }
 
 
-static void convert_raw_to_true(float* true_temperature, float* true_pressure, const int32_t ut, const int32_t up, const BMP_180_OSS_Control c, const BMP_180_Calibration* cal)
+void convert_raw_to_true(float* true_temperature, float* true_pressure, const int32_t ut, const int32_t up, const BMP_180_OSS_Control c, const BMP_180_Calibration* cal)
 {
   const uint32_t oss = ((uint32_t) c) >> 6;
   const  int32_t x11 = (ut - ((int32_t)cal->ac6)) * ((int32_t) cal->ac5) / (1 << 15);
