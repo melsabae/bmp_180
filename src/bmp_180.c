@@ -1,5 +1,6 @@
 #include <fcntl.h>
 #include <linux/i2c-dev.h>
+#include <sys/file.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <math.h>
@@ -50,12 +51,15 @@ int32_t raw_read_temperature(
   uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
   uint8_t read_buf[2] = { 0 };
 
+  (void) flock(fd, LOCK_EX);
   (void) write(fd, write_buf, sizeof(write_buf));
   (void) usleep(sleep_interval); // wish the sensor had an interrupt pin
 
   write_buf[0] = BMP_180_REGISTER_OUT_MSB;
+
   (void) write(fd, write_buf, 1);
   (void) read(fd, read_buf, sizeof(read_buf));
+  (void) flock(fd, LOCK_UN);
 
   return ((read_buf[0] << 8) | read_buf[1]) & ((1 << 16) - 1);
 }
@@ -71,12 +75,15 @@ int32_t raw_read_pressure(
   uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
   uint8_t read_buf[3] = { 0 };
 
+  (void) flock(fd, LOCK_EX);
   (void) write(fd, write_buf, sizeof(write_buf));
   (void) usleep(sleep_interval); // wish the sensor had an interrupt pin
 
   write_buf[0] = BMP_180_REGISTER_OUT_MSB;
+
   (void) write(fd, write_buf, 1);
   (void) read(fd, read_buf, sizeof(read_buf));
+  (void) flock(fd, LOCK_UN);
 
   const int32_t raw_pressure = ((read_buf[0] << 16) | (read_buf[1] << 8) | (read_buf[2]));
   return raw_pressure >> (8 - (c >> 6));
@@ -157,8 +164,11 @@ BMP_180_Calibration get_bmp_calibration(
   const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
   uint8_t buffer[BMP_180_CALIBRATION_BYTES];
 
+  (void) flock(fd, LOCK_EX);
   (void) write(fd, write_buf, 1);
   (void) read(fd, buffer, BMP_180_CALIBRATION_BYTES);
+  (void) flock(fd, LOCK_UN);
+
   return compute_bmp_calibrations(buffer);
 }
 
