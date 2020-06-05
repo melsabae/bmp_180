@@ -4,6 +4,27 @@
 #include "bmp_180.h"
 
 
+float make_reference_average_pressure(
+		  const int fd
+		, const BMP_180_Calibration* cal
+		, const BMP_180_OSS_Control c
+		, const size_t number_samples
+		)
+{
+	float temp     = 0.0f;
+	float press    = 0.0f;
+	float ret      = 0.0f;
+
+	for(size_t i = 0; i < number_samples; i ++)
+	{
+		read_bmp_180(&temp, &press, fd, cal, c);
+		ret += press;
+	}
+
+	return ret / (float) number_samples;
+}
+
+
 int main(int argc, char** argv)
 {
 	int fd = 0;
@@ -26,6 +47,9 @@ int main(int argc, char** argv)
 			, cal.md
 			);
 
+	const float ref_pressure =
+		make_reference_average_pressure(fd, &cal, BMP_180_OSS_CONTROL_8, 32);
+
 	while(true)
 	{
 
@@ -34,7 +58,8 @@ int main(int argc, char** argv)
 			float temp     = 0.0f;
 			float press    = 0.0f;
 			float altitude = 0.0f;
-			read_bmp_180_all(&temp, &press, &altitude, SEA_LEVEL_PRESSURE_PASCALS, fd, &cal, i << 6);
+
+			read_bmp_180_all(&temp, &press, &altitude, ref_pressure, fd, &cal, i << 6);
 			printf("%lu, %.1f C, %.0f Pa, %f m\n", i, temp, press, altitude);
 		}
 
