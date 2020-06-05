@@ -188,24 +188,26 @@ void read_bmp_180(
 }
 
 
-float bmp_180_altitude(
-		const float true_pressure
+float bmp_180_altitude_from_ref(
+		  const float true_pressure_pascals
+    , const float ref_pressure_pascals
 		)
 {
-  return 44330.0 * (1.0f - pow(true_pressure / 101325.0f, 1.0f/5.255f));
+  return 44330.0 * (1.0f - pow(true_pressure_pascals / ref_pressure_pascals, 1.0f/5.255f));
 }
 
 
 void read_bmp_180_all(
-		  float* true_temperature
-		, float* true_pressure
-		, float* altitude
+		  float* true_temperature_celcius
+		, float* true_pressure_pascals
+		, float* altitude_meters
+    , const float ref_pressure_pascals
 		, const int fd
 		, const BMP_180_Calibration* cal
 		, const BMP_180_OSS_Control c
 		)
 {
-  read_bmp_180(true_temperature, true_pressure, fd, cal, c);
-  *altitude = bmp_180_altitude(*true_pressure);
+  read_bmp_180(true_temperature_celcius, true_pressure_pascals, fd, cal, c);
+  *altitude_meters = bmp_180_altitude_from_ref(*true_pressure_pascals, ref_pressure_pascals);
 }
 

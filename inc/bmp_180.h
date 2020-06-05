@@ -2,9 +2,10 @@
 #define __BMP_180_H__
 
 
-#define DATASHEET_ADDRESS         (0xEE)
-#define I2CDETECT_ADDRESS         (DATASHEET_ADDRESS >> 1)
-#define BMP_180_CALIBRATION_BYTES (22)
+#define DATASHEET_ADDRESS          (0xEE)
+#define I2CDETECT_ADDRESS          (DATASHEET_ADDRESS >> 1)
+#define BMP_180_CALIBRATION_BYTES  (22)
+#define SEA_LEVEL_PRESSURE_PASCALS (101325.0f)
 
 
 #ifdef __cplusplus
@@ -162,15 +163,17 @@ void read_bmp_180(
 		);
 
 
-float bmp_180_altitude(
-		const float true_pressure
+float bmp_180_altitude_from_ref(
+		  const float true_pressure
+    , const float ref_pressure_pascals
 		);
 
 
 void read_bmp_180_all(
-		  float* true_temperature
-		, float* true_pressure
-		, float* altitude
+		  float* true_temperature_celcius
+		, float* true_pressure_pascals
+		, float* altitude_meters
+    , const float ref_pressure_pascals
 		, const int fd
 		, const BMP_180_Calibration* cal
 		, const BMP_180_OSS_Control c
