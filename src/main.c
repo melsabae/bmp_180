@@ -35,10 +35,10 @@ int main(int argc, char** argv)
 			float press    = 0.0f;
 			float altitude = 0.0f;
 			read_bmp_180_all(&temp, &press, &altitude, fd, &cal, i << 6);
-			printf("%lu, %f = degrees C, %f = pascals, %f = meters\n\n", i, temp, press, altitude);
+			printf("%lu, %.1f C, %.0f Pa, %f m\n", i, temp, press, altitude);
 		}
 
-		usleep(1E6 / 15);
+		usleep(1E6 / 5);
 	}
 
   return 0;
