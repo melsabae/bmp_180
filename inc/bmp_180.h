@@ -149,18 +149,19 @@ int setup_bmp_180_fd(
 		) __attribute__((warn_unused_result)) ;
 
 
-void convert_uncompensated_to_true(
+int convert_uncompensated_to_true(
 			float* true_temperature
 		, float* true_pressure
 		, const int32_t ut
 		, const int32_t up
 		, const BMP_180_OSS_Control c
 		, const BMP_180_Calibration* cal
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
-float convert_uncompensated_temperature_to_true(
-		  const int32_t ut
+int convert_uncompensated_temperature_to_true(
+		  float* true_temperature
+		, const int32_t ut
 		, const BMP_180_OSS_Control c
 		, const BMP_180_Calibration* cal
 		) __attribute__((warn_unused_result)) ;

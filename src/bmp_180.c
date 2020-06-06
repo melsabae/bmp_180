@@ -169,7 +169,7 @@ int setup_bmp_180_fd(
 }
 
 
-void convert_uncompensated_to_true(
+int convert_uncompensated_to_true(
 			float* true_temperature
 		, float* true_pressure
 		, const int32_t ut
@@ -180,7 +180,12 @@ void convert_uncompensated_to_true(
 {
   const uint32_t oss = ((uint32_t) c) >> 6;
   const  int32_t x11 = (ut - ((int32_t)cal->ac6)) * ((int32_t) cal->ac5) / (1 << 15);
-  const  int32_t x21 = ((int32_t) cal->mc) * (1 << 11) / (x11 + cal->md);
+
+	const int32_t guard = x11 + cal->md;
+
+	if(0 == guard) { return 1; }
+
+  const  int32_t x21 = ((int32_t) cal->mc) * (1 << 11) / guard;
   const  int32_t b5  = x11 + x21;
   const  int32_t b6  = b5 - 4000;
   const  int32_t x12 = cal->b2 * b6 * b6 / (1 << 23);
@@ -191,6 +196,9 @@ void convert_uncompensated_to_true(
   const  int32_t x23 = cal->b1 * b6 * b6 / (1 << 28);
   const  int32_t x33 = (x13 + x23 + 2) / (1 << 2);
   const uint32_t b4  = cal->ac4 * (uint32_t)(x33 + 32768) / (1 << 15);
+
+	if(0 == b4) { return 2; }
+
   const uint32_t b7  = ((uint32_t) up - b3) * (50000 >> oss);
   const  int32_t p   = b7 < 0x80000000
                      ? b7 * 2 / b4
@@ -202,11 +210,14 @@ void convert_uncompensated_to_true(
 
   *true_temperature  = ((float) ((b5 + 8) / (1 << 4))) / 10.0f;
   *true_pressure     = p + (x15 + x24 + 3791) / (1 << 4);
+
+	return 0;
 }
 
 
-float convert_uncompensated_temperature_to_true(
-			const int32_t ut
+int convert_uncompensated_temperature_to_true(
+			float* true_temperature
+	  , const int32_t ut
 		, const BMP_180_OSS_Control c
 		, const BMP_180_Calibration* cal
 		)
@@ -214,9 +225,10 @@ float convert_uncompensated_temperature_to_true(
 	float t = 0.0f;
 	float p = 0.0f;
 
-	convert_uncompensated_to_true(&t, &p, ut, 0, c, cal);
+	if(0 != convert_uncompensated_to_true(&t, &p, ut, 0, c, cal)) { return 1; }
 
-	return t;
+	*true_temperature = t;
+	return 0;
 }
 
 
@@ -260,7 +272,12 @@ int read_bmp_180(
 
   if(0 != read_uncompensated_temperature(&ut, fd)) { return 1; }
   if(0 != read_uncompensated_pressure(&up, fd, c)) { return 2; }
-  convert_uncompensated_to_true(true_temperature, true_pressure, ut, up, c, cal);
+
+  if(0 != convert_uncompensated_to_true(true_temperature, true_pressure, ut, up, c, cal))
+	{
+		return 3;
+	}
+
 	return 0;
 }
 
