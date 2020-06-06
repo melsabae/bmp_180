@@ -67,7 +67,7 @@ int main(int argc, char** argv)
 				bmp_180_altitude_from_ref(press_Pa, ref_pressure);
 
 			printf(
-					  "%lu, %.1f C, %.0f Pa, %f m, %f m\n"
+					  "%zu, %.1f C, %.0f Pa, %f m, %f m\n"
 					, i
 					, temp_c
 					, press_Pa
