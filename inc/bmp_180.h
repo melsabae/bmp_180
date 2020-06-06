@@ -16,17 +16,17 @@ extern "C" {
 
 typedef struct
 {
-	int16_t  ac1;
-	int16_t  ac2;
-	int16_t  ac3;
-	uint16_t ac4;
-	uint16_t ac5;
-	uint16_t ac6;
-	int16_t  b1 ;
-	int16_t  b2 ;
-	int16_t  mb ;
-	int16_t  mc ;
-	int16_t  md ;
+  int16_t  ac1;
+  int16_t  ac2;
+  int16_t  ac3;
+  uint16_t ac4;
+  uint16_t ac5;
+  uint16_t ac6;
+  int16_t  b1 ;
+  int16_t  b2 ;
+  int16_t  mb ;
+  int16_t  mc ;
+  int16_t  md ;
 } BMP_180_Calibration;
 
 
@@ -100,108 +100,108 @@ typedef enum
 
 
 int setup_bmp_180_fd(
-		  int* fd
-		, const char* device_path
-		) __attribute__((warn_unused_result)) ;
+      int* fd
+    , const char* device_path
+    ) __attribute__((warn_unused_result)) ;
 
 
 int raw_bmp_180_write(
-			const int fd
-		, const uint8_t* data
-		, const size_t len
-		) __attribute__((warn_unused_result)) ;
+      const int fd
+    , const uint8_t* data
+    , const size_t len
+    ) __attribute__((warn_unused_result)) ;
 
 
 int raw_bmp_180_read(
-			uint8_t* data
-		, const int fd
-		, const size_t len
-		) __attribute__((warn_unused_result)) ;
+      uint8_t* data
+    , const int fd
+    , const size_t len
+    ) __attribute__((warn_unused_result)) ;
 
 
 BMP_180_Calibration compute_bmp_calibrations(
-		const uint8_t data[BMP_180_CALIBRATION_BYTES]
-		) __attribute__((warn_unused_result)) ;
+    const uint8_t data[BMP_180_CALIBRATION_BYTES]
+    ) __attribute__((warn_unused_result)) ;
 
 
 int get_bmp_calibration(
-		  BMP_180_Calibration* cal
-		, const int fd
-		) __attribute__((warn_unused_result)) ;
+      BMP_180_Calibration* cal
+    , const int fd
+    ) __attribute__((warn_unused_result)) ;
 
 
 int setup_bmp_180(
-			int* fd
-		, BMP_180_Calibration* cal
-		, const char* device_path
-		) __attribute__((warn_unused_result)) ;
+      int* fd
+    , BMP_180_Calibration* cal
+    , const char* device_path
+    ) __attribute__((warn_unused_result)) ;
 
 
 int read_uncompensated_temperature(
-		  int32_t* ut
-		, const int fd
-		) __attribute__((warn_unused_result)) ;
+      int32_t* ut
+    , const int fd
+    ) __attribute__((warn_unused_result)) ;
 
 
 int read_uncompensated_pressure(
-		  int32_t* up
-		, const int fd
-		, const BMP_180_OSS_Control c
-		) __attribute__((warn_unused_result)) ;
+      int32_t* up
+    , const int fd
+    , const BMP_180_OSS_Control c
+    ) __attribute__((warn_unused_result)) ;
 
 
 int read_bmp_180(
-			float* true_temperature_celcius
-		, float* true_pressure_pascals
-		, const int fd
-		, const BMP_180_Calibration* cal
-		, const BMP_180_OSS_Control c
-		) __attribute__((warn_unused_result)) ;
+      float* true_temperature_celcius
+    , float* true_pressure_pascals
+    , const int fd
+    , const BMP_180_Calibration* cal
+    , const BMP_180_OSS_Control c
+    ) __attribute__((warn_unused_result)) ;
 
 
 int read_bmp_180_all(
-			float* true_temperature_celcius
-		, float* true_pressure_pascals
-		, float* altitude_meters
+      float* true_temperature_celcius
+    , float* true_pressure_pascals
+    , float* altitude_meters
     , const float ref_pressure_pascals
-		, const int fd
-		, const BMP_180_Calibration* cal
-		, const BMP_180_OSS_Control c
-		) __attribute__((warn_unused_result)) ;
+    , const int fd
+    , const BMP_180_Calibration* cal
+    , const BMP_180_OSS_Control c
+    ) __attribute__((warn_unused_result)) ;
 
 
 BMP_180_Start_Conversion convert_oss_to_conversion(
-		const BMP_180_OSS_Control c
-		) __attribute__((warn_unused_result)) ;
+    const BMP_180_OSS_Control c
+    ) __attribute__((warn_unused_result)) ;
 
 
 useconds_t convert_convesion_to_sleep_interval(
-		const BMP_180_Start_Conversion s
-		) __attribute__((warn_unused_result)) ;
+    const BMP_180_Start_Conversion s
+    ) __attribute__((warn_unused_result)) ;
 
 
 float bmp_180_altitude_from_ref(
-			const float true_pressure_celcius
+      const float true_pressure_celcius
     , const float ref_pressure_pascals
-		) __attribute__((warn_unused_result)) ;
+    ) __attribute__((warn_unused_result)) ;
 
 
 int convert_uncompensated_to_true(
-			float* true_temperature
-		, float* true_pressure_celcius
-		, const int32_t ut
-		, const int32_t up
-		, const BMP_180_OSS_Control c
-		, const BMP_180_Calibration* cal
-		) __attribute__((warn_unused_result)) ;
+      float* true_temperature
+    , float* true_pressure_celcius
+    , const int32_t ut
+    , const int32_t up
+    , const BMP_180_OSS_Control c
+    , const BMP_180_Calibration* cal
+    ) __attribute__((warn_unused_result)) ;
 
 
 int convert_uncompensated_temperature_to_true(
-		  float* true_temperature_celcius
-		, const int32_t ut
-		, const BMP_180_OSS_Control c
-		, const BMP_180_Calibration* cal
-		) __attribute__((warn_unused_result)) ;
+      float* true_temperature_celcius
+    , const int32_t ut
+    , const BMP_180_OSS_Control c
+    , const BMP_180_Calibration* cal
+    ) __attribute__((warn_unused_result)) ;
 
 
 #ifdef __cplusplus
