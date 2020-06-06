@@ -15,24 +15,24 @@ int setup_bmp_180_fd(
 {
   const int _fd = open(device_path, O_RDWR);
 
-  if(_fd <= STDERR_FILENO) { return 1; }
+  if(_fd <= STDERR_FILENO) { return -1; }
 
   if(0 != flock(_fd, LOCK_EX))
   {
-    if(0 != close(_fd)) { return 2; }
-    return 3;
+    if(0 != close(_fd)) { return -2; }
+    return -3;
   }
 
   if(0 != ioctl(_fd, I2C_SLAVE, I2CDETECT_ADDRESS))
   {
-    if(0 != close(_fd)) { return 4; }
-    return 5;
+    if(0 != close(_fd)) { return -4; }
+    return -5;
   }
 
   if(0 != flock(_fd, LOCK_UN))
   {
-    if(0 != close(_fd)) { return 6; }
-    return 7;
+    if(0 != close(_fd)) { return -6; }
+    return -7;
   }
 
   *fd = _fd;
@@ -46,9 +46,9 @@ int raw_bmp_180_write(
     , const size_t len
     )
 {
-  if(0 != flock(fd, LOCK_EX)) { return 1; }
-  if(((ssize_t) len) != write(fd, data, len)) { return 2; }
-  if(0 != flock(fd, LOCK_UN)) { return 3; }
+  if(0 != flock(fd, LOCK_EX)) { return -1; }
+  if(((ssize_t) len) != write(fd, data, len)) { return -2; }
+  if(0 != flock(fd, LOCK_UN)) { return -3; }
   return 0;
 }
 
@@ -59,9 +59,9 @@ int raw_bmp_180_read(
     , const size_t len
     )
 {
-  if(0 != flock(fd, LOCK_EX)) { return 1; }
-  if(((ssize_t) len) != read(fd, data, len)) { return 2; }
-  if(0 != flock(fd, LOCK_UN)) { return 3; }
+  if(0 != flock(fd, LOCK_EX)) { return -1; }
+  if(((ssize_t) len) != read(fd, data, len)) { return -2; }
+  if(0 != flock(fd, LOCK_UN)) { return -3; }
   return 0;
 }
 
@@ -95,8 +95,8 @@ int get_bmp_calibration(
   const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
   uint8_t read_buf[BMP_180_CALIBRATION_BYTES];
 
-  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return 1; }
-  if(0 != raw_bmp_180_read(read_buf, fd, BMP_180_CALIBRATION_BYTES)) { return 2; }
+  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return -1; }
+  if(0 != raw_bmp_180_read(read_buf, fd, BMP_180_CALIBRATION_BYTES)) { return -2; }
 
   *cal = compute_bmp_calibrations(read_buf);
   return 0;
@@ -109,7 +109,7 @@ int setup_bmp_180(
     , const char* device_path
     )
 {
-  if(0 != setup_bmp_180_fd(fd, device_path)) { return 1; }
+  if(0 != setup_bmp_180_fd(fd, device_path)) { return -1; }
   return get_bmp_calibration(cal, *fd);
 }
 
@@ -124,13 +124,13 @@ int read_uncompensated_temperature(
   uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
   uint8_t read_buf[2] = { 0 };
 
-  if(0 != raw_bmp_180_write(fd, write_buf, sizeof(write_buf))) { return 1; }
-  if(0 != usleep(sleep_interval)) { return 2; }
+  if(0 != raw_bmp_180_write(fd, write_buf, sizeof(write_buf))) { return -1; }
+  if(0 != usleep(sleep_interval)) { return -2; }
 
   write_buf[0] = BMP_180_REGISTER_OUT_MSB;
 
-  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return 3; }
-  if(0 != raw_bmp_180_read(read_buf, fd, sizeof(read_buf))) { return 4; }
+  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return -3; }
+  if(0 != raw_bmp_180_read(read_buf, fd, sizeof(read_buf))) { return -4; }
 
   *ut = ((read_buf[0] << 8) | read_buf[1]) & ((1 << 16) - 1);
   return 0;
@@ -148,13 +148,13 @@ int read_uncompensated_pressure(
   uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
   uint8_t read_buf[3] = { 0 };
 
-  if(0 != raw_bmp_180_write(fd, write_buf, sizeof(write_buf))) { return 1; }
-  if(0 != usleep(sleep_interval)) { return 2; }
+  if(0 != raw_bmp_180_write(fd, write_buf, sizeof(write_buf))) { return -1; }
+  if(0 != usleep(sleep_interval)) { return -2; }
 
   write_buf[0] = BMP_180_REGISTER_OUT_MSB;
 
-  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return 3; }
-  if(0 != raw_bmp_180_read(read_buf, fd, sizeof(read_buf))) { return 4; }
+  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return -3; }
+  if(0 != raw_bmp_180_read(read_buf, fd, sizeof(read_buf))) { return -4; }
 
   const int32_t raw_pressure = ((read_buf[0] << 16) | (read_buf[1] << 8) | (read_buf[2]));
   *up = raw_pressure >> (8 - (((size_t) c) >> 6));
@@ -173,12 +173,12 @@ int read_bmp_180(
   int32_t ut = 0;
   int32_t up = 0;
 
-  if(0 != read_uncompensated_temperature(&ut, fd)) { return 1; }
-  if(0 != read_uncompensated_pressure(&up, fd, c)) { return 2; }
+  if(0 != read_uncompensated_temperature(&ut, fd)) { return -1; }
+  if(0 != read_uncompensated_pressure(&up, fd, c)) { return -2; }
 
   if(0 != convert_uncompensated_to_true(true_temperature_celcius, true_pressure_pascals, ut, up, c, cal))
   {
-    return 3;
+    return -3;
   }
 
   return 0;
@@ -197,7 +197,7 @@ int read_bmp_180_all(
 {
   if(0 != read_bmp_180(true_temperature_celcius, true_pressure_pascals, fd, cal, c))
   {
-    return 1;
+    return -1;
   }
 
   *altitude_meters = bmp_180_altitude_from_ref(*true_pressure_pascals, ref_pressure_pascals);
@@ -261,7 +261,7 @@ int convert_uncompensated_to_true(
 
   const int32_t guard = x11 + cal->md;
 
-  if(0 == guard) { return 1; }
+  if(0 == guard) { return -1; }
 
   const  int32_t x21 = ((int32_t) cal->mc) * (1 << 11) / guard;
   const  int32_t b5  = x11 + x21;
@@ -275,7 +275,7 @@ int convert_uncompensated_to_true(
   const  int32_t x33 = (x13 + x23 + 2) / (1 << 2);
   const uint32_t b4  = cal->ac4 * (uint32_t)(x33 + 32768) / (1 << 15);
 
-  if(0 == b4) { return 2; }
+  if(0 == b4) { return -2; }
 
   const uint32_t b7  = ((uint32_t) up - b3) * (50000 >> oss);
   const  int32_t p   = b7 < 0x80000000
@@ -305,7 +305,7 @@ int convert_uncompensated_temperature_to_true(
   float dummy_pressure = 0.0f;
   float t = 0.0f;
 
-  if(0 != convert_uncompensated_to_true(&t, &dummy_pressure, ut, dummy_up, c, cal)) { return 1; }
+  if(0 != convert_uncompensated_to_true(&t, &dummy_pressure, ut, dummy_up, c, cal)) { return -1; }
 
   *true_temperature_celcius = t;
   return 0;
