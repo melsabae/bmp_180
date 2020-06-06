@@ -105,48 +105,48 @@ int raw_bmp_180_read(
 			uint8_t* data
 		, const int fd
 		, const size_t len
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 int raw_bmp_180_write(
 			const int fd
 		, const uint8_t* data
 		, const size_t len
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 BMP_180_Start_Conversion convert_oss_to_conversion(
 		const BMP_180_OSS_Control c
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 useconds_t convert_convesion_to_sleep_interval(
 		const BMP_180_Start_Conversion s
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 int read_uncompensated_temperature(
 		  int32_t* ut
 		, const int fd
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 int read_uncompensated_pressure(
 		  int32_t* up
 		, const int fd
 		, const BMP_180_OSS_Control c
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 BMP_180_Calibration compute_bmp_calibrations(
 		const uint8_t array[BMP_180_CALIBRATION_BYTES]
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 int setup_bmp_180_fd(
 		  int* fd
 		, const char* device_path
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 void convert_uncompensated_to_true(
@@ -163,21 +163,20 @@ float convert_uncompensated_temperature_to_true(
 		  const int32_t ut
 		, const BMP_180_OSS_Control c
 		, const BMP_180_Calibration* cal
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 int get_bmp_calibration(
 		  BMP_180_Calibration* cal
 		, const int fd
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 int setup_bmp_180(
 			int* fd
 		, BMP_180_Calibration* cal
 		, const char* file_path
-		);
-
+		) __attribute__((warn_unused_result)) ;
 
 int read_bmp_180(
 			float* true_temperature
@@ -185,13 +184,13 @@ int read_bmp_180(
 		, const int fd
 		, const BMP_180_Calibration* cal
 		, const BMP_180_OSS_Control c
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 float bmp_180_altitude_from_ref(
 			const float true_pressure
     , const float ref_pressure_pascals
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 int read_bmp_180_all(
@@ -202,7 +201,7 @@ int read_bmp_180_all(
 		, const int fd
 		, const BMP_180_Calibration* cal
 		, const BMP_180_OSS_Control c
-		);
+		) __attribute__((warn_unused_result)) ;
 
 
 #ifdef __cplusplus
