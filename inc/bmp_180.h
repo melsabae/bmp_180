@@ -101,6 +101,20 @@ typedef enum
 } BMP_180_Registers;
 
 
+void raw_bmp_180_read(
+			uint8_t* data
+		, const int fd
+		, const size_t len
+		);
+
+
+void raw_bmp_180_write(
+			const int fd
+		, const uint8_t* data
+		, const size_t len
+		);
+
+
 BMP_180_Start_Conversion convert_oss_to_conversion(
 		const BMP_180_OSS_Control c
 		);
@@ -111,13 +125,28 @@ useconds_t convert_convesion_to_sleep_interval(
 		);
 
 
-int32_t raw_read_temperature(
+int32_t read_uncompensated_temperature(
 		const int fd
 		);
 
 
-int32_t raw_read_pressure(
-		  const int fd
+BMP_180_Start_Conversion convert_oss_to_conversion(
+		const BMP_180_OSS_Control c
+		);
+
+
+useconds_t convert_convesion_to_sleep_interval(
+		const BMP_180_Start_Conversion s
+		);
+
+
+int32_t read_uncompensated_temperature(
+		const int fd
+		);
+
+
+int32_t read_uncompensated_pressure(
+			const int fd
 		, const BMP_180_OSS_Control c
 		);
 
@@ -132,11 +161,18 @@ int setup_bmp_180_fd(
 		);
 
 
-void convert_raw_to_true(
-		  float* true_temperature
+void convert_uncompensated_to_true(
+			float* true_temperature
 		, float* true_pressure
 		, const int32_t ut
 		, const int32_t up
+		, const BMP_180_OSS_Control c
+		, const BMP_180_Calibration* cal
+		);
+
+
+float convert_uncompensated_temperature_to_true(
+		  const int32_t ut
 		, const BMP_180_OSS_Control c
 		, const BMP_180_Calibration* cal
 		);
@@ -148,14 +184,14 @@ BMP_180_Calibration get_bmp_calibration(
 
 
 void setup_bmp_180(
-		  int* fd
+			int* fd
 		, BMP_180_Calibration* cal
 		, const char* file_path
 		);
 
 
 void read_bmp_180(
-		  float* true_temperature
+			float* true_temperature
 		, float* true_pressure
 		, const int fd
 		, const BMP_180_Calibration* cal
@@ -164,13 +200,13 @@ void read_bmp_180(
 
 
 float bmp_180_altitude_from_ref(
-		  const float true_pressure
+			const float true_pressure
     , const float ref_pressure_pascals
 		);
 
 
 void read_bmp_180_all(
-		  float* true_temperature_celcius
+			float* true_temperature_celcius
 		, float* true_pressure_pascals
 		, float* altitude_meters
     , const float ref_pressure_pascals

@@ -9,6 +9,30 @@
 #include "bmp_180.h"
 
 
+void raw_bmp_180_read(
+			uint8_t* data
+		, const int fd
+		, const size_t len
+		)
+{
+  (void) flock(fd, LOCK_EX);
+  (void) read(fd, data, len);
+	(void) flock(fd, LOCK_UN);
+}
+
+
+void raw_bmp_180_write(
+			const int fd
+		, const uint8_t* data
+		, const size_t len
+		)
+{
+  (void) flock(fd, LOCK_EX);
+  (void) write(fd, data, len);
+	(void) flock(fd, LOCK_UN);
+}
+
+
 BMP_180_Start_Conversion convert_oss_to_conversion(
 		const BMP_180_OSS_Control c
 	)
@@ -42,7 +66,7 @@ useconds_t convert_convesion_to_sleep_interval(
 }
 
 
-int32_t raw_read_temperature(
+int32_t read_uncompensated_temperature(
 		const int fd
 		)
 {
@@ -51,22 +75,20 @@ int32_t raw_read_temperature(
   uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
   uint8_t read_buf[2] = { 0 };
 
-  (void) flock(fd, LOCK_EX);
-  (void) write(fd, write_buf, sizeof(write_buf));
+  raw_bmp_180_write(fd, write_buf, sizeof(write_buf));
   (void) usleep(sleep_interval); // wish the sensor had an interrupt pin
 
   write_buf[0] = BMP_180_REGISTER_OUT_MSB;
+  raw_bmp_180_write(fd, write_buf, 1);
 
-  (void) write(fd, write_buf, 1);
-  (void) read(fd, read_buf, sizeof(read_buf));
-  (void) flock(fd, LOCK_UN);
+  raw_bmp_180_read(read_buf, fd, sizeof(read_buf));
 
   return ((read_buf[0] << 8) | read_buf[1]) & ((1 << 16) - 1);
 }
 
 
-int32_t raw_read_pressure(
-		  const int fd
+int32_t read_uncompensated_pressure(
+			const int fd
 		, const BMP_180_OSS_Control c
 		)
 {
@@ -75,15 +97,13 @@ int32_t raw_read_pressure(
   uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
   uint8_t read_buf[3] = { 0 };
 
-  (void) flock(fd, LOCK_EX);
-  (void) write(fd, write_buf, sizeof(write_buf));
+  raw_bmp_180_write(fd, write_buf, sizeof(write_buf));
   (void) usleep(sleep_interval); // wish the sensor had an interrupt pin
 
   write_buf[0] = BMP_180_REGISTER_OUT_MSB;
+  raw_bmp_180_write(fd, write_buf, 1);
 
-  (void) write(fd, write_buf, 1);
-  (void) read(fd, read_buf, sizeof(read_buf));
-  (void) flock(fd, LOCK_UN);
+  raw_bmp_180_read(read_buf, fd, sizeof(read_buf));
 
   const int32_t raw_pressure = ((read_buf[0] << 16) | (read_buf[1] << 8) | (read_buf[2]));
   return raw_pressure >> (8 - (c >> 6));
@@ -125,8 +145,8 @@ int setup_bmp_180_fd(
 }
 
 
-void convert_raw_to_true(
-		  float* true_temperature
+void convert_uncompensated_to_true(
+			float* true_temperature
 		, float* true_pressure
 		, const int32_t ut
 		, const int32_t up
@@ -161,24 +181,37 @@ void convert_raw_to_true(
 }
 
 
+float convert_uncompensated_temperature_to_true(
+			const int32_t ut
+		, const BMP_180_OSS_Control c
+		, const BMP_180_Calibration* cal
+		)
+{
+	float t = 0.0f;
+	float p = 0.0f;
+
+	convert_uncompensated_to_true(&t, &p, ut, 0, c, cal);
+
+	return t;
+}
+
+
 BMP_180_Calibration get_bmp_calibration(
 		const int fd
 		)
 {
   const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
-  uint8_t buffer[BMP_180_CALIBRATION_BYTES];
+  uint8_t read_buf[BMP_180_CALIBRATION_BYTES];
 
-  (void) flock(fd, LOCK_EX);
-  (void) write(fd, write_buf, 1);
-  (void) read(fd, buffer, BMP_180_CALIBRATION_BYTES);
-  (void) flock(fd, LOCK_UN);
+  raw_bmp_180_write(fd, write_buf, 1);
+  raw_bmp_180_read(read_buf, fd, BMP_180_CALIBRATION_BYTES);
 
-  return compute_bmp_calibrations(buffer);
+  return compute_bmp_calibrations(read_buf);
 }
 
 
 void setup_bmp_180(
-		  int* fd
+			int* fd
 		, BMP_180_Calibration* cal
 		, const char* file_path
 		)
@@ -189,21 +222,21 @@ void setup_bmp_180(
 
 
 void read_bmp_180(
-		  float* true_temperature
+			float* true_temperature
 		, float* true_pressure
 		, const int fd
 		, const BMP_180_Calibration* cal
 		, const BMP_180_OSS_Control c
 		)
 {
-  const int32_t ut = raw_read_temperature(fd);
-  const int32_t up = raw_read_pressure(fd, c);
-  convert_raw_to_true(true_temperature, true_pressure, ut, up, c, cal);
+  const int32_t ut = read_uncompensated_temperature(fd);
+  const int32_t up = read_uncompensated_pressure(fd, c);
+  convert_uncompensated_to_true(true_temperature, true_pressure, ut, up, c, cal);
 }
 
 
 float bmp_180_altitude_from_ref(
-		  const float true_pressure_pascals
+			const float true_pressure_pascals
     , const float ref_pressure_pascals
 		)
 {
@@ -212,7 +245,7 @@ float bmp_180_altitude_from_ref(
 
 
 void read_bmp_180_all(
-		  float* true_temperature_celcius
+			float* true_temperature_celcius
 		, float* true_pressure_pascals
 		, float* altitude_meters
     , const float ref_pressure_pascals
