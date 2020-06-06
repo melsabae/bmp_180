@@ -1,23 +1,41 @@
-#include <fcntl.h>
 #include <linux/i2c-dev.h>
+#include <math.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
-#include <math.h>
-#include <inttypes.h>
+
 
 #include "bmp_180.h"
 
 
-int raw_bmp_180_read(
-			uint8_t* data
-		, const int fd
-		, const size_t len
+int setup_bmp_180_fd(
+		  int* fd
+		, const char* device_path
 		)
 {
-  if(0 != flock(fd, LOCK_EX)) { return 1; }
-  if(((ssize_t) len) != read(fd, data, len)) { return 2; }
-	if(0 != flock(fd, LOCK_UN)) { return 3; }
+  const int _fd = open(device_path, O_RDWR);
+
+	if(_fd <= STDERR_FILENO) { return 1; }
+
+  if(0 != flock(_fd, LOCK_EX))
+	{
+		if(0 != close(_fd)) { return 2; }
+		return 3;
+	}
+
+  if(0 != ioctl(_fd, I2C_SLAVE, I2CDETECT_ADDRESS))
+	{
+		if(0 != close(_fd)) { return 4; }
+		return 5;
+	}
+
+  if(0 != flock(_fd, LOCK_UN))
+	{
+		if(0 != close(_fd)) { return 6; }
+		return 7;
+	}
+
+	*fd = _fd;
 	return 0;
 }
 
@@ -35,36 +53,64 @@ int raw_bmp_180_write(
 }
 
 
-BMP_180_Start_Conversion convert_oss_to_conversion(
-		const BMP_180_OSS_Control c
-	)
+int raw_bmp_180_read(
+			uint8_t* data
+		, const int fd
+		, const size_t len
+		)
 {
-  switch(c)
-  {
-    case BMP_180_OSS_CONTROL_1: return BMP_180_START_CONVERSION_PRESSURE_OSS_0;
-    case BMP_180_OSS_CONTROL_2: return BMP_180_START_CONVERSION_PRESSURE_OSS_1;
-    case BMP_180_OSS_CONTROL_4: return BMP_180_START_CONVERSION_PRESSURE_OSS_2;
-    case BMP_180_OSS_CONTROL_8: return BMP_180_START_CONVERSION_PRESSURE_OSS_3;
-  }
-
-  return BMP_180_START_CONVERSION_PRESSURE_OSS_3;
+  if(0 != flock(fd, LOCK_EX)) { return 1; }
+  if(((ssize_t) len) != read(fd, data, len)) { return 2; }
+	if(0 != flock(fd, LOCK_UN)) { return 3; }
+	return 0;
 }
 
 
-useconds_t convert_convesion_to_sleep_interval(
-		const BMP_180_Start_Conversion s
+BMP_180_Calibration compute_bmp_calibrations(
+		const uint8_t array[BMP_180_CALIBRATION_BYTES]
 		)
 {
-  switch(s)
+  return (BMP_180_Calibration)
   {
-    case BMP_180_START_CONVERSION_TEMPERATURE   : return 4500;  // 4.5 ms
-    case BMP_180_START_CONVERSION_PRESSURE_OSS_0: return 4500;  // 4.5 ms
-    case BMP_180_START_CONVERSION_PRESSURE_OSS_1: return 7500;  // 7.5 ms
-    case BMP_180_START_CONVERSION_PRESSURE_OSS_2: return 13500; // 13.5 ms
-    case BMP_180_START_CONVERSION_PRESSURE_OSS_3: return 25500; // 25.5 ms
-  }
+      .ac1 = array[ 0] << 8 | array[ 1]
+    , .ac2 = array[ 2] << 8 | array[ 3]
+    , .ac3 = array[ 4] << 8 | array[ 5]
+    , .ac4 = array[ 6] << 8 | array[ 7]
+    , .ac5 = array[ 8] << 8 | array[ 9]
+    , .ac6 = array[10] << 8 | array[11]
+    , .b1  = array[12] << 8 | array[13]
+    , .b2  = array[14] << 8 | array[15]
+    , .mb  = array[16] << 8 | array[17]
+    , .mc  = array[18] << 8 | array[19]
+    , .md  = array[20] << 8 | array[21]
+  };
+}
 
-  return 76500;
+
+int get_bmp_calibration(
+		  BMP_180_Calibration* cal
+		, const int fd
+		)
+{
+  const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
+  uint8_t read_buf[BMP_180_CALIBRATION_BYTES];
+
+  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return 1; }
+  if(0 != raw_bmp_180_read(read_buf, fd, BMP_180_CALIBRATION_BYTES)) { return 2; }
+
+  *cal = compute_bmp_calibrations(read_buf);
+	return 0;
+}
+
+
+int setup_bmp_180(
+			int* fd
+		, BMP_180_Calibration* cal
+		, const char* file_path
+		)
+{
+  if(0 != setup_bmp_180_fd(fd, file_path)) { return 1; }
+  return get_bmp_calibration(cal, *fd);
 }
 
 
@@ -116,56 +162,88 @@ int read_uncompensated_pressure(
 }
 
 
-BMP_180_Calibration compute_bmp_calibrations(
-		const uint8_t array[BMP_180_CALIBRATION_BYTES]
+int read_bmp_180(
+			float* true_temperature
+		, float* true_pressure
+		, const int fd
+		, const BMP_180_Calibration* cal
+		, const BMP_180_OSS_Control c
 		)
 {
-  return (BMP_180_Calibration)
-  {
-      .ac1 = array[ 0] << 8 | array[ 1]
-    , .ac2 = array[ 2] << 8 | array[ 3]
-    , .ac3 = array[ 4] << 8 | array[ 5]
-    , .ac4 = array[ 6] << 8 | array[ 7]
-    , .ac5 = array[ 8] << 8 | array[ 9]
-    , .ac6 = array[10] << 8 | array[11]
-    , .b1  = array[12] << 8 | array[13]
-    , .b2  = array[14] << 8 | array[15]
-    , .mb  = array[16] << 8 | array[17]
-    , .mc  = array[18] << 8 | array[19]
-    , .md  = array[20] << 8 | array[21]
-  };
-}
+	int32_t ut = 0;
+	int32_t up = 0;
 
+  if(0 != read_uncompensated_temperature(&ut, fd)) { return 1; }
+  if(0 != read_uncompensated_pressure(&up, fd, c)) { return 2; }
 
-int setup_bmp_180_fd(
-		  int* fd
-		, const char* device_path
-		)
-{
-  const int _fd = open(device_path, O_RDWR);
-
-	if(_fd <= STDERR_FILENO) { return 1; }
-
-  if(0 != flock(_fd, LOCK_EX))
+  if(0 != convert_uncompensated_to_true(true_temperature, true_pressure, ut, up, c, cal))
 	{
-		if(0 != close(_fd)) { return 2; }
 		return 3;
 	}
 
-  if(0 != ioctl(_fd, I2C_SLAVE, I2CDETECT_ADDRESS))
-	{
-		if(0 != close(_fd)) { return 4; }
-		return 5;
-	}
-
-  if(0 != flock(_fd, LOCK_UN))
-	{
-		if(0 != close(_fd)) { return 6; }
-		return 7;
-	}
-
-	*fd = _fd;
 	return 0;
+}
+
+
+int read_bmp_180_all(
+			float* true_temperature_celcius
+		, float* true_pressure_pascals
+		, float* altitude_meters
+    , const float ref_pressure_pascals
+		, const int fd
+		, const BMP_180_Calibration* cal
+		, const BMP_180_OSS_Control c
+		)
+{
+  if(0 != read_bmp_180(true_temperature_celcius, true_pressure_pascals, fd, cal, c))
+	{
+		return 1;
+	}
+
+  *altitude_meters = bmp_180_altitude_from_ref(*true_pressure_pascals, ref_pressure_pascals);
+	return 0;
+}
+
+
+BMP_180_Start_Conversion convert_oss_to_conversion(
+		const BMP_180_OSS_Control c
+	)
+{
+  switch(c)
+  {
+    case BMP_180_OSS_CONTROL_1: return BMP_180_START_CONVERSION_PRESSURE_OSS_0;
+    case BMP_180_OSS_CONTROL_2: return BMP_180_START_CONVERSION_PRESSURE_OSS_1;
+    case BMP_180_OSS_CONTROL_4: return BMP_180_START_CONVERSION_PRESSURE_OSS_2;
+    case BMP_180_OSS_CONTROL_8: return BMP_180_START_CONVERSION_PRESSURE_OSS_3;
+  }
+
+  return BMP_180_START_CONVERSION_PRESSURE_OSS_3;
+}
+
+
+useconds_t convert_convesion_to_sleep_interval(
+		const BMP_180_Start_Conversion s
+		)
+{
+  switch(s)
+  {
+    case BMP_180_START_CONVERSION_TEMPERATURE   : return 4500;  // 4.5 ms
+    case BMP_180_START_CONVERSION_PRESSURE_OSS_0: return 4500;  // 4.5 ms
+    case BMP_180_START_CONVERSION_PRESSURE_OSS_1: return 7500;  // 7.5 ms
+    case BMP_180_START_CONVERSION_PRESSURE_OSS_2: return 13500; // 13.5 ms
+    case BMP_180_START_CONVERSION_PRESSURE_OSS_3: return 25500; // 25.5 ms
+  }
+
+  return 76500;
+}
+
+
+float bmp_180_altitude_from_ref(
+			const float true_pressure_pascals
+    , const float ref_pressure_pascals
+		)
+{
+  return 44330.0 * (1.0f - pow(true_pressure_pascals / ref_pressure_pascals, 1.0f/5.255f));
 }
 
 
@@ -222,91 +300,14 @@ int convert_uncompensated_temperature_to_true(
 		, const BMP_180_Calibration* cal
 		)
 {
-	float t = 0.0f;
-	float p = 0.0f;
+	const int32_t dummy_up = 0;
 
-	if(0 != convert_uncompensated_to_true(&t, &p, ut, 0, c, cal)) { return 1; }
+	float dummy_pressure = 0.0f;
+	float t = 0.0f;
+
+	if(0 != convert_uncompensated_to_true(&t, &dummy_pressure, ut, dummy_up, c, cal)) { return 1; }
 
 	*true_temperature = t;
-	return 0;
-}
-
-
-int get_bmp_calibration(
-		  BMP_180_Calibration* cal
-		, const int fd
-		)
-{
-  const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
-  uint8_t read_buf[BMP_180_CALIBRATION_BYTES];
-
-  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return 1; }
-  if(0 != raw_bmp_180_read(read_buf, fd, BMP_180_CALIBRATION_BYTES)) { return 2; }
-
-  *cal = compute_bmp_calibrations(read_buf);
-	return 0;
-}
-
-
-int setup_bmp_180(
-			int* fd
-		, BMP_180_Calibration* cal
-		, const char* file_path
-		)
-{
-  if(0 != setup_bmp_180_fd(fd, file_path)) { return 1; }
-  return get_bmp_calibration(cal, *fd);
-}
-
-
-int read_bmp_180(
-			float* true_temperature
-		, float* true_pressure
-		, const int fd
-		, const BMP_180_Calibration* cal
-		, const BMP_180_OSS_Control c
-		)
-{
-	int32_t ut = 0;
-	int32_t up = 0;
-
-  if(0 != read_uncompensated_temperature(&ut, fd)) { return 1; }
-  if(0 != read_uncompensated_pressure(&up, fd, c)) { return 2; }
-
-  if(0 != convert_uncompensated_to_true(true_temperature, true_pressure, ut, up, c, cal))
-	{
-		return 3;
-	}
-
-	return 0;
-}
-
-
-float bmp_180_altitude_from_ref(
-			const float true_pressure_pascals
-    , const float ref_pressure_pascals
-		)
-{
-  return 44330.0 * (1.0f - pow(true_pressure_pascals / ref_pressure_pascals, 1.0f/5.255f));
-}
-
-
-int read_bmp_180_all(
-			float* true_temperature_celcius
-		, float* true_pressure_pascals
-		, float* altitude_meters
-    , const float ref_pressure_pascals
-		, const int fd
-		, const BMP_180_Calibration* cal
-		, const BMP_180_OSS_Control c
-		)
-{
-  if(0 != read_bmp_180(true_temperature_celcius, true_pressure_pascals, fd, cal, c))
-	{
-		return 1;
-	}
-
-  *altitude_meters = bmp_180_altitude_from_ref(*true_pressure_pascals, ref_pressure_pascals);
 	return 0;
 }
 

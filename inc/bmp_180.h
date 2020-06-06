@@ -1,19 +1,17 @@
 #ifndef __BMP_180_H__
 #define __BMP_180_H__
-
-
-#define DATASHEET_ADDRESS          (0xEE)
-#define I2CDETECT_ADDRESS          (DATASHEET_ADDRESS >> 1)
-#define BMP_180_CALIBRATION_BYTES  (22)
-#define SEA_LEVEL_PRESSURE_PASCALS (101325.0f)
-
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 
 #include <inttypes.h>
+
+
+#define DATASHEET_ADDRESS          (0xEE)
+#define I2CDETECT_ADDRESS          (DATASHEET_ADDRESS >> 1)
+#define BMP_180_CALIBRATION_BYTES  (22)
+#define SEA_LEVEL_PRESSURE_PASCALS (101325.0f)
 
 
 typedef struct
@@ -101,10 +99,9 @@ typedef enum
 } BMP_180_Registers;
 
 
-int raw_bmp_180_read(
-			uint8_t* data
-		, const int fd
-		, const size_t len
+int setup_bmp_180_fd(
+		  int* fd
+		, const char* device_path
 		) __attribute__((warn_unused_result)) ;
 
 
@@ -115,13 +112,28 @@ int raw_bmp_180_write(
 		) __attribute__((warn_unused_result)) ;
 
 
-BMP_180_Start_Conversion convert_oss_to_conversion(
-		const BMP_180_OSS_Control c
+int raw_bmp_180_read(
+			uint8_t* data
+		, const int fd
+		, const size_t len
 		) __attribute__((warn_unused_result)) ;
 
 
-useconds_t convert_convesion_to_sleep_interval(
-		const BMP_180_Start_Conversion s
+BMP_180_Calibration compute_bmp_calibrations(
+		const uint8_t array[BMP_180_CALIBRATION_BYTES]
+		) __attribute__((warn_unused_result)) ;
+
+
+int get_bmp_calibration(
+		  BMP_180_Calibration* cal
+		, const int fd
+		) __attribute__((warn_unused_result)) ;
+
+
+int setup_bmp_180(
+			int* fd
+		, BMP_180_Calibration* cal
+		, const char* file_path
 		) __attribute__((warn_unused_result)) ;
 
 
@@ -138,14 +150,39 @@ int read_uncompensated_pressure(
 		) __attribute__((warn_unused_result)) ;
 
 
-BMP_180_Calibration compute_bmp_calibrations(
-		const uint8_t array[BMP_180_CALIBRATION_BYTES]
+int read_bmp_180(
+			float* true_temperature
+		, float* true_pressure
+		, const int fd
+		, const BMP_180_Calibration* cal
+		, const BMP_180_OSS_Control c
 		) __attribute__((warn_unused_result)) ;
 
 
-int setup_bmp_180_fd(
-		  int* fd
-		, const char* device_path
+int read_bmp_180_all(
+			float* true_temperature_celcius
+		, float* true_pressure_pascals
+		, float* altitude_meters
+    , const float ref_pressure_pascals
+		, const int fd
+		, const BMP_180_Calibration* cal
+		, const BMP_180_OSS_Control c
+		) __attribute__((warn_unused_result)) ;
+
+
+BMP_180_Start_Conversion convert_oss_to_conversion(
+		const BMP_180_OSS_Control c
+		) __attribute__((warn_unused_result)) ;
+
+
+useconds_t convert_convesion_to_sleep_interval(
+		const BMP_180_Start_Conversion s
+		) __attribute__((warn_unused_result)) ;
+
+
+float bmp_180_altitude_from_ref(
+			const float true_pressure
+    , const float ref_pressure_pascals
 		) __attribute__((warn_unused_result)) ;
 
 
@@ -167,47 +204,8 @@ int convert_uncompensated_temperature_to_true(
 		) __attribute__((warn_unused_result)) ;
 
 
-int get_bmp_calibration(
-		  BMP_180_Calibration* cal
-		, const int fd
-		) __attribute__((warn_unused_result)) ;
-
-
-int setup_bmp_180(
-			int* fd
-		, BMP_180_Calibration* cal
-		, const char* file_path
-		) __attribute__((warn_unused_result)) ;
-
-int read_bmp_180(
-			float* true_temperature
-		, float* true_pressure
-		, const int fd
-		, const BMP_180_Calibration* cal
-		, const BMP_180_OSS_Control c
-		) __attribute__((warn_unused_result)) ;
-
-
-float bmp_180_altitude_from_ref(
-			const float true_pressure
-    , const float ref_pressure_pascals
-		) __attribute__((warn_unused_result)) ;
-
-
-int read_bmp_180_all(
-			float* true_temperature_celcius
-		, float* true_pressure_pascals
-		, float* altitude_meters
-    , const float ref_pressure_pascals
-		, const int fd
-		, const BMP_180_Calibration* cal
-		, const BMP_180_OSS_Control c
-		) __attribute__((warn_unused_result)) ;
-
-
 #ifdef __cplusplus
   }
 #endif
-
 #endif // __BMP_180_H__
 
