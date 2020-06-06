@@ -101,14 +101,14 @@ typedef enum
 } BMP_180_Registers;
 
 
-void raw_bmp_180_read(
+int raw_bmp_180_read(
 			uint8_t* data
 		, const int fd
 		, const size_t len
 		);
 
 
-void raw_bmp_180_write(
+int raw_bmp_180_write(
 			const int fd
 		, const uint8_t* data
 		, const size_t len
@@ -125,28 +125,15 @@ useconds_t convert_convesion_to_sleep_interval(
 		);
 
 
-int32_t read_uncompensated_temperature(
-		const int fd
+int read_uncompensated_temperature(
+		  int32_t* ut
+		, const int fd
 		);
 
 
-BMP_180_Start_Conversion convert_oss_to_conversion(
-		const BMP_180_OSS_Control c
-		);
-
-
-useconds_t convert_convesion_to_sleep_interval(
-		const BMP_180_Start_Conversion s
-		);
-
-
-int32_t read_uncompensated_temperature(
-		const int fd
-		);
-
-
-int32_t read_uncompensated_pressure(
-			const int fd
+int read_uncompensated_pressure(
+		  int32_t* up
+		, const int fd
 		, const BMP_180_OSS_Control c
 		);
 
@@ -157,7 +144,8 @@ BMP_180_Calibration compute_bmp_calibrations(
 
 
 int setup_bmp_180_fd(
-		const char* device_path
+		  int* fd
+		, const char* device_path
 		);
 
 
@@ -178,19 +166,20 @@ float convert_uncompensated_temperature_to_true(
 		);
 
 
-BMP_180_Calibration get_bmp_calibration(
-		const int fd
+int get_bmp_calibration(
+		  BMP_180_Calibration* cal
+		, const int fd
 		);
 
 
-void setup_bmp_180(
+int setup_bmp_180(
 			int* fd
 		, BMP_180_Calibration* cal
 		, const char* file_path
 		);
 
 
-void read_bmp_180(
+int read_bmp_180(
 			float* true_temperature
 		, float* true_pressure
 		, const int fd
@@ -205,7 +194,7 @@ float bmp_180_altitude_from_ref(
 		);
 
 
-void read_bmp_180_all(
+int read_bmp_180_all(
 			float* true_temperature_celcius
 		, float* true_pressure_pascals
 		, float* altitude_meters

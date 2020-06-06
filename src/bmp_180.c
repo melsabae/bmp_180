@@ -9,27 +9,29 @@
 #include "bmp_180.h"
 
 
-void raw_bmp_180_read(
+int raw_bmp_180_read(
 			uint8_t* data
 		, const int fd
 		, const size_t len
 		)
 {
-  (void) flock(fd, LOCK_EX);
-  (void) read(fd, data, len);
-	(void) flock(fd, LOCK_UN);
+  if(0 != flock(fd, LOCK_EX)) { return 1; }
+  if(((ssize_t) len) != read(fd, data, len)) { return 2; }
+	if(0 != flock(fd, LOCK_UN)) { return 3; }
+	return 0;
 }
 
 
-void raw_bmp_180_write(
+int raw_bmp_180_write(
 			const int fd
 		, const uint8_t* data
 		, const size_t len
 		)
 {
-  (void) flock(fd, LOCK_EX);
-  (void) write(fd, data, len);
-	(void) flock(fd, LOCK_UN);
+  if(0 != flock(fd, LOCK_EX)) { return 1; }
+  if(((ssize_t) len) != write(fd, data, len)) { return 2; }
+	if(0 != flock(fd, LOCK_UN)) { return 3; }
+	return 0;
 }
 
 
@@ -66,8 +68,9 @@ useconds_t convert_convesion_to_sleep_interval(
 }
 
 
-int32_t read_uncompensated_temperature(
-		const int fd
+int read_uncompensated_temperature(
+		  int32_t* ut
+		, const int fd
 		)
 {
   const BMP_180_Start_Conversion s = BMP_180_START_CONVERSION_TEMPERATURE;
@@ -75,20 +78,22 @@ int32_t read_uncompensated_temperature(
   uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
   uint8_t read_buf[2] = { 0 };
 
-  raw_bmp_180_write(fd, write_buf, sizeof(write_buf));
-  (void) usleep(sleep_interval); // wish the sensor had an interrupt pin
+  if(0 != raw_bmp_180_write(fd, write_buf, sizeof(write_buf))) { return 1; }
+  if(0 != usleep(sleep_interval)) { return 2; }
 
   write_buf[0] = BMP_180_REGISTER_OUT_MSB;
-  raw_bmp_180_write(fd, write_buf, 1);
 
-  raw_bmp_180_read(read_buf, fd, sizeof(read_buf));
+  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return 3; }
+  if(0 != raw_bmp_180_read(read_buf, fd, sizeof(read_buf))) { return 4; }
 
-  return ((read_buf[0] << 8) | read_buf[1]) & ((1 << 16) - 1);
+  *ut = ((read_buf[0] << 8) | read_buf[1]) & ((1 << 16) - 1);
+	return 0;
 }
 
 
-int32_t read_uncompensated_pressure(
-			const int fd
+int read_uncompensated_pressure(
+		  int32_t* up
+		, const int fd
 		, const BMP_180_OSS_Control c
 		)
 {
@@ -97,16 +102,17 @@ int32_t read_uncompensated_pressure(
   uint8_t write_buf[2] = { (uint8_t) BMP_180_REGISTER_CTRL_MEAS, (uint8_t) s };
   uint8_t read_buf[3] = { 0 };
 
-  raw_bmp_180_write(fd, write_buf, sizeof(write_buf));
-  (void) usleep(sleep_interval); // wish the sensor had an interrupt pin
+  if(0 != raw_bmp_180_write(fd, write_buf, sizeof(write_buf))) { return 1; }
+  if(0 != usleep(sleep_interval)) { return 2; }
 
   write_buf[0] = BMP_180_REGISTER_OUT_MSB;
-  raw_bmp_180_write(fd, write_buf, 1);
 
-  raw_bmp_180_read(read_buf, fd, sizeof(read_buf));
+  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return 3; }
+  if(0 != raw_bmp_180_read(read_buf, fd, sizeof(read_buf))) { return 4; }
 
   const int32_t raw_pressure = ((read_buf[0] << 16) | (read_buf[1] << 8) | (read_buf[2]));
-  return raw_pressure >> (8 - (c >> 6));
+  *up = raw_pressure >> (8 - (((size_t) c) >> 6));
+	return 0;
 }
 
 
@@ -132,16 +138,34 @@ BMP_180_Calibration compute_bmp_calibrations(
 
 
 int setup_bmp_180_fd(
-		const char* device_path
+		  int* fd
+		, const char* device_path
 		)
 {
-  const int fd = open(device_path, O_RDWR);
+  const int _fd = open(device_path, O_RDWR);
 
-  (void) flock(fd, LOCK_EX);
-  (void) ioctl(fd, I2C_SLAVE, I2CDETECT_ADDRESS);
-  (void) flock(fd, LOCK_UN);
+	if(_fd <= STDERR_FILENO) { return 1; }
 
-  return fd;
+  if(0 != flock(_fd, LOCK_EX))
+	{
+		if(0 != close(_fd)) { return 2; }
+		return 3;
+	}
+
+  if(0 != ioctl(_fd, I2C_SLAVE, I2CDETECT_ADDRESS))
+	{
+		if(0 != close(_fd)) { return 4; }
+		return 5;
+	}
+
+  if(0 != flock(_fd, LOCK_UN))
+	{
+		if(0 != close(_fd)) { return 6; }
+		return 7;
+	}
+
+	*fd = _fd;
+	return 0;
 }
 
 
@@ -196,32 +220,34 @@ float convert_uncompensated_temperature_to_true(
 }
 
 
-BMP_180_Calibration get_bmp_calibration(
-		const int fd
+int get_bmp_calibration(
+		  BMP_180_Calibration* cal
+		, const int fd
 		)
 {
   const uint8_t write_buf[1] = { BMP_180_REGISTER_CALIB_00 };
   uint8_t read_buf[BMP_180_CALIBRATION_BYTES];
 
-  raw_bmp_180_write(fd, write_buf, 1);
-  raw_bmp_180_read(read_buf, fd, BMP_180_CALIBRATION_BYTES);
+  if(0 != raw_bmp_180_write(fd, write_buf, 1)) { return 1; }
+  if(0 != raw_bmp_180_read(read_buf, fd, BMP_180_CALIBRATION_BYTES)) { return 2; }
 
-  return compute_bmp_calibrations(read_buf);
+  *cal = compute_bmp_calibrations(read_buf);
+	return 0;
 }
 
 
-void setup_bmp_180(
+int setup_bmp_180(
 			int* fd
 		, BMP_180_Calibration* cal
 		, const char* file_path
 		)
 {
-  *fd  = setup_bmp_180_fd(file_path);
-  *cal = get_bmp_calibration(*fd);
+  if(0 != setup_bmp_180_fd(fd, file_path)) { return 1; }
+  return get_bmp_calibration(cal, *fd);
 }
 
 
-void read_bmp_180(
+int read_bmp_180(
 			float* true_temperature
 		, float* true_pressure
 		, const int fd
@@ -229,9 +255,13 @@ void read_bmp_180(
 		, const BMP_180_OSS_Control c
 		)
 {
-  const int32_t ut = read_uncompensated_temperature(fd);
-  const int32_t up = read_uncompensated_pressure(fd, c);
+	int32_t ut = 0;
+	int32_t up = 0;
+
+  if(0 != read_uncompensated_temperature(&ut, fd)) { return 1; }
+  if(0 != read_uncompensated_pressure(&up, fd, c)) { return 2; }
   convert_uncompensated_to_true(true_temperature, true_pressure, ut, up, c, cal);
+	return 0;
 }
 
 
@@ -244,7 +274,7 @@ float bmp_180_altitude_from_ref(
 }
 
 
-void read_bmp_180_all(
+int read_bmp_180_all(
 			float* true_temperature_celcius
 		, float* true_pressure_pascals
 		, float* altitude_meters
@@ -254,7 +284,12 @@ void read_bmp_180_all(
 		, const BMP_180_OSS_Control c
 		)
 {
-  read_bmp_180(true_temperature_celcius, true_pressure_pascals, fd, cal, c);
+  if(0 != read_bmp_180(true_temperature_celcius, true_pressure_pascals, fd, cal, c))
+	{
+		return 1;
+	}
+
   *altitude_meters = bmp_180_altitude_from_ref(*true_pressure_pascals, ref_pressure_pascals);
+	return 0;
 }
 
