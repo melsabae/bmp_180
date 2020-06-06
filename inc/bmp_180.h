@@ -120,7 +120,7 @@ int raw_bmp_180_read(
 
 
 BMP_180_Calibration compute_bmp_calibrations(
-		const uint8_t array[BMP_180_CALIBRATION_BYTES]
+		const uint8_t data[BMP_180_CALIBRATION_BYTES]
 		) __attribute__((warn_unused_result)) ;
 
 
@@ -133,7 +133,7 @@ int get_bmp_calibration(
 int setup_bmp_180(
 			int* fd
 		, BMP_180_Calibration* cal
-		, const char* file_path
+		, const char* device_path
 		) __attribute__((warn_unused_result)) ;
 
 
@@ -151,8 +151,8 @@ int read_uncompensated_pressure(
 
 
 int read_bmp_180(
-			float* true_temperature
-		, float* true_pressure
+			float* true_temperature_celcius
+		, float* true_pressure_pascals
 		, const int fd
 		, const BMP_180_Calibration* cal
 		, const BMP_180_OSS_Control c
@@ -181,14 +181,14 @@ useconds_t convert_convesion_to_sleep_interval(
 
 
 float bmp_180_altitude_from_ref(
-			const float true_pressure
+			const float true_pressure_celcius
     , const float ref_pressure_pascals
 		) __attribute__((warn_unused_result)) ;
 
 
 int convert_uncompensated_to_true(
 			float* true_temperature
-		, float* true_pressure
+		, float* true_pressure_celcius
 		, const int32_t ut
 		, const int32_t up
 		, const BMP_180_OSS_Control c
@@ -197,7 +197,7 @@ int convert_uncompensated_to_true(
 
 
 int convert_uncompensated_temperature_to_true(
-		  float* true_temperature
+		  float* true_temperature_celcius
 		, const int32_t ut
 		, const BMP_180_OSS_Control c
 		, const BMP_180_Calibration* cal

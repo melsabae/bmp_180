@@ -67,22 +67,22 @@ int raw_bmp_180_read(
 
 
 BMP_180_Calibration compute_bmp_calibrations(
-		const uint8_t array[BMP_180_CALIBRATION_BYTES]
+		const uint8_t data[BMP_180_CALIBRATION_BYTES]
 		)
 {
   return (BMP_180_Calibration)
   {
-      .ac1 = array[ 0] << 8 | array[ 1]
-    , .ac2 = array[ 2] << 8 | array[ 3]
-    , .ac3 = array[ 4] << 8 | array[ 5]
-    , .ac4 = array[ 6] << 8 | array[ 7]
-    , .ac5 = array[ 8] << 8 | array[ 9]
-    , .ac6 = array[10] << 8 | array[11]
-    , .b1  = array[12] << 8 | array[13]
-    , .b2  = array[14] << 8 | array[15]
-    , .mb  = array[16] << 8 | array[17]
-    , .mc  = array[18] << 8 | array[19]
-    , .md  = array[20] << 8 | array[21]
+      .ac1 = data[ 0] << 8 | data[ 1]
+    , .ac2 = data[ 2] << 8 | data[ 3]
+    , .ac3 = data[ 4] << 8 | data[ 5]
+    , .ac4 = data[ 6] << 8 | data[ 7]
+    , .ac5 = data[ 8] << 8 | data[ 9]
+    , .ac6 = data[10] << 8 | data[11]
+    , .b1  = data[12] << 8 | data[13]
+    , .b2  = data[14] << 8 | data[15]
+    , .mb  = data[16] << 8 | data[17]
+    , .mc  = data[18] << 8 | data[19]
+    , .md  = data[20] << 8 | data[21]
   };
 }
 
@@ -106,10 +106,10 @@ int get_bmp_calibration(
 int setup_bmp_180(
 			int* fd
 		, BMP_180_Calibration* cal
-		, const char* file_path
+		, const char* device_path
 		)
 {
-  if(0 != setup_bmp_180_fd(fd, file_path)) { return 1; }
+  if(0 != setup_bmp_180_fd(fd, device_path)) { return 1; }
   return get_bmp_calibration(cal, *fd);
 }
 
@@ -163,8 +163,8 @@ int read_uncompensated_pressure(
 
 
 int read_bmp_180(
-			float* true_temperature
-		, float* true_pressure
+			float* true_temperature_celcius
+		, float* true_pressure_pascals
 		, const int fd
 		, const BMP_180_Calibration* cal
 		, const BMP_180_OSS_Control c
@@ -176,7 +176,7 @@ int read_bmp_180(
   if(0 != read_uncompensated_temperature(&ut, fd)) { return 1; }
   if(0 != read_uncompensated_pressure(&up, fd, c)) { return 2; }
 
-  if(0 != convert_uncompensated_to_true(true_temperature, true_pressure, ut, up, c, cal))
+  if(0 != convert_uncompensated_to_true(true_temperature_celcius, true_pressure_pascals, ut, up, c, cal))
 	{
 		return 3;
 	}
@@ -248,8 +248,8 @@ float bmp_180_altitude_from_ref(
 
 
 int convert_uncompensated_to_true(
-			float* true_temperature
-		, float* true_pressure
+			float* true_temperature_celcius
+		, float* true_pressure_pascals
 		, const int32_t ut
 		, const int32_t up
 		, const BMP_180_OSS_Control c
@@ -286,15 +286,15 @@ int convert_uncompensated_to_true(
   const  int32_t x15 = x14 * 3038 / (1 << 16);
   const  int32_t x24 = (-7357) * p / (1 << 16);
 
-  *true_temperature  = ((float) ((b5 + 8) / (1 << 4))) / 10.0f;
-  *true_pressure     = p + (x15 + x24 + 3791) / (1 << 4);
+  *true_temperature_celcius  = ((float) ((b5 + 8) / (1 << 4))) / 10.0f;
+  *true_pressure_pascals     = p + (x15 + x24 + 3791) / (1 << 4);
 
 	return 0;
 }
 
 
 int convert_uncompensated_temperature_to_true(
-			float* true_temperature
+			float* true_temperature_celcius
 	  , const int32_t ut
 		, const BMP_180_OSS_Control c
 		, const BMP_180_Calibration* cal
@@ -307,7 +307,7 @@ int convert_uncompensated_temperature_to_true(
 
 	if(0 != convert_uncompensated_to_true(&t, &dummy_pressure, ut, dummy_up, c, cal)) { return 1; }
 
-	*true_temperature = t;
+	*true_temperature_celcius = t;
 	return 0;
 }
 
