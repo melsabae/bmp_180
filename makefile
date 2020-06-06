@@ -7,7 +7,7 @@ SOURCE_FILES        			:= $(notdir $(shell find $(LIB_SRC_PATH) -type f -iname '
 VPATH                     := $(shell find $(LIB_SRC_PATH) -type d)
 
 COMPILER              		:= gcc
-COMPILER_OPTIONS      		:= -Wall -Wextra -Wno-unused-result
+COMPILER_OPTIONS      		:= -Wall -Wextra
 _INC_PATHS             		:= $(shell find $(LIB_LIB_PATH) -type d -iname 'inc') $(LIB_INC_PATH)
 _LIB_PATHS          			:=
 _LIB_NAMES          			:= m
