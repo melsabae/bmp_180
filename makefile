@@ -62,14 +62,6 @@ define compile_binary
 endef
 
 
-tags:
-	@ctags -R -h .h .
-
-
-docs:
-	@doxygen Doxyfile
-
-
 $(DEBUG_BUILD_ROOT)/%.o: %.c $(DEBUG_BUILD_ROOT)/%.d
 $(DEBUG_BUILD_ROOT)/%.o: %.c makefile | dirs
 	$(call compile_object, $(DEBUG_COMPILER_LINE), $@, $<)
@@ -100,6 +92,14 @@ clean:
 all: debug
 debug: $(DEBUG_EXECUTABLE)
 release: $(RELEASE_EXECUTABLE)
+
+
+tags:
+	@ctags -R -h .h .
+
+
+docs:
+	@doxygen Doxyfile
 
 
 $(DEBUG_DEP_FILES):
