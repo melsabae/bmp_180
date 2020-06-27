@@ -7,7 +7,7 @@ SOURCE_FILES							:= $(notdir $(shell find $(LIB_SRC_PATH) -type f -iname '*.c'
 VPATH                     := $(shell find $(LIB_SRC_PATH) -type d)
 
 COMPILER									:= gcc
-COMPILER_OPTIONS					:= -Wall -Wextra
+COMPILER_OPTIONS					:= -Wall -Wextra -MD
 _INC_PATHS								:= $(shell find $(LIB_LIB_PATH) -type d -iname 'inc') $(LIB_INC_PATH)
 _LIB_PATHS								:=
 _LIB_NAMES								:= m
@@ -24,6 +24,7 @@ DEBUG_LIB_LINKER_FLAGS    := $(LIB_LINKER_FLAGS) $(_DEBUG_LIB_NAMES:%=-l %)
 DEBUG_BUILD_ROOT					:= $(BUILD_ROOT)/debug
 DEBUG_COMPILER_OPTIONS		:= $(COMPILER_OPTIONS) -g3 -O0
 DEBUG_OBJECT_FILES				:= $(SOURCE_FILES:%.c=$(DEBUG_BUILD_ROOT)/%.o)
+DEBUG_DEP_FILES           := $(SOURCE_FILES:%.c=$(DEBUG_BUILD_ROOT)/%.d)
 DEBUG_EXECUTABLE          := $(DEBUG_BUILD_ROOT)/$(EXECUTABLE)_dbg
 DEBUG_COMPILER_LINE       := $(DEBUG_COMPILER_OPTIONS) $(DEBUG_INC_PATHS) $(DEBUG_LIB_PATHS) $(DEBUG_LIB_LINKER_FLAGS)
 
@@ -36,6 +37,7 @@ RELEASE_LIB_LINKER_FLAGS  := $(LIB_LINKER_FLAGS) $(_RELEASE_LIB_NAMES:%=-l %)
 RELEASE_BUILD_ROOT				:= $(BUILD_ROOT)/release
 RELEASE_COMPILER_OPTIONS	:= $(COMPILER_OPTIONS) -g0 -O3
 RELEASE_OBJECT_FILES			:= $(SOURCE_FILES:%.c=$(RELEASE_BUILD_ROOT)/%.o)
+RELEASE_DEP_FILES         := $(SOURCE_FILES:%.c=$(RELEASE_BUILD_ROOT)/%.d)
 RELEASE_EXECUTABLE        := $(RELEASE_BUILD_ROOT)/$(EXECUTABLE)_dbg
 RELEASE_COMPILER_LINE     := $(RELEASE_COMPILER_OPTIONS) $(RELEASE_INC_PATHS) $(RELEASE_LIB_PATHS) $(RELEASE_LIB_LINKER_FLAGS)
 
@@ -59,7 +61,8 @@ define compile_binary
 endef
 
 
-$(DEBUG_BUILD_ROOT)/%.o: %.c makefile | dirs
+$(DEBUG_BUILD_ROOT)/%.o: %.c
+$(DEBUG_BUILD_ROOT)/%.o: %.c $(DEBUG_BUILD_ROOT)/%.d | dirs
 	$(call compile_object, $(DEBUG_COMPILER_LINE), $@, $<)
 
 
@@ -67,7 +70,8 @@ $(DEBUG_EXECUTABLE): $(DEBUG_OBJECT_FILES)
 	$(call compile_binary, $(DEBUG_COMPILER_LINE), $@, $(DEBUG_OBJECT_FILES))
 
 
-$(RELEASE_BUILD_ROOT)/%.o: %.c makefile | dirs
+$(RELEASE_BUILD_ROOT)/%.o: %.c
+$(RELEASE_BUILD_ROOT)/%.o: %.c $(RELEASE_BUILD_ROOT)/%.d | dirs
 	$(call compile_object, $(RELEASE_COMPILER_LINE), $@, $<)
 
 
@@ -83,6 +87,14 @@ dirs:
 clean:
 	rm -rf $(BUILD_ROOT)/*/*
 
+
 all: debug
 debug: $(DEBUG_EXECUTABLE)
 release: $(RELEASE_EXECUTABLE)
+
+
+$(DEBUG_OBJECT_FILES):    makefile
+$(RELEASE_OBJECT_FILES):  makefile
+include $(wildcard $(DEBUG_DEP_FILES))
+include $(wildcard $(RELEASE_DEP_FILES))
+
