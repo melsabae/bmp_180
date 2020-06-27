@@ -85,7 +85,7 @@ dirs:
 	@mkdir -p $(DEBUG_BUILD_ROOT) $(RELEASE_BUILD_ROOT)
 
 clean:
-	rm -rf $(BUILD_ROOT)/*/* ./{debug,release}_executable
+	rm -rf $(BUILD_ROOT)/*/*
 
 
 all: debug
