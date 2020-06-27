@@ -61,8 +61,8 @@ define compile_binary
 endef
 
 
-$(DEBUG_BUILD_ROOT)/%.o: %.c
-$(DEBUG_BUILD_ROOT)/%.o: %.c $(DEBUG_BUILD_ROOT)/%.d | dirs
+$(DEBUG_BUILD_ROOT)/%.o: %.c $(DEBUG_BUILD_ROOT)/%.d
+$(DEBUG_BUILD_ROOT)/%.o: %.c makefile | dirs
 	$(call compile_object, $(DEBUG_COMPILER_LINE), $@, $<)
 
 
@@ -70,8 +70,8 @@ $(DEBUG_EXECUTABLE): $(DEBUG_OBJECT_FILES)
 	$(call compile_binary, $(DEBUG_COMPILER_LINE), $@, $(DEBUG_OBJECT_FILES))
 
 
-$(RELEASE_BUILD_ROOT)/%.o: %.c
-$(RELEASE_BUILD_ROOT)/%.o: %.c $(RELEASE_BUILD_ROOT)/%.d | dirs
+$(RELEASE_BUILD_ROOT)/%.o: %.c $(RELEASE_BUILD_ROOT)/%.d
+$(RELEASE_BUILD_ROOT)/%.o: %.c makefile | dirs
 	$(call compile_object, $(RELEASE_COMPILER_LINE), $@, $<)
 
 
@@ -85,7 +85,7 @@ dirs:
 	@mkdir -p $(DEBUG_BUILD_ROOT) $(RELEASE_BUILD_ROOT)
 
 clean:
-	rm -rf $(BUILD_ROOT)/*/*
+	rm -rf $(BUILD_ROOT)/*/* ./{debug,release}_executable
 
 
 all: debug
@@ -93,8 +93,8 @@ debug: $(DEBUG_EXECUTABLE)
 release: $(RELEASE_EXECUTABLE)
 
 
-$(DEBUG_OBJECT_FILES):    makefile
-$(RELEASE_OBJECT_FILES):  makefile
+$(DEBUG_DEP_FILES):
+$(RELEASE_DEP_FILES):
 include $(wildcard $(DEBUG_DEP_FILES))
 include $(wildcard $(RELEASE_DEP_FILES))
 

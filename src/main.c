@@ -4,6 +4,7 @@
 
 
 #include "bmp_180.h"
+#include "main.h"
 
 
 float make_reference_average_pressure(
